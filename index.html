@@ -580,44 +580,46 @@
     return rows;
   }
 
+  // Merge Firebase + localStorage, deduplicate by name+score, sort, take top N
+  function mergeDesc(firebaseRows, localRows, key) {
+    const seen = new Set();
+    return [...firebaseRows, ...localRows]
+      .filter(e => {
+        const k = (e.name||'') + '|' + (e[key]||0);
+        if (seen.has(k)) return false;
+        seen.add(k); return true;
+      })
+      .sort((a,b) => b[key] - a[key])
+      .slice(0, 5);
+  }
+
   function loadOnline() {
     const db = window.arcadeDB;
     if (!db) { showOffline(); return; }
     document.getElementById('lb-status').textContent = '🌐 online';
 
-    const TOP = 5;
-
-    // Fetch all scores, sort client-side. Fall back to localStorage if Firebase empty.
+    // Always merge Firebase + localStorage so pre-Firebase scores still appear
     db.ref('arcade/snake').on('value',
-      snap => {
-        let rows = snapAll(snap).sort((a,b) => b.score - a.score).slice(0, TOP);
-        if (!rows.length) rows = readLocalLB('snakeLB').slice(0, TOP);
-        setPanel('panel-snake', rows, false);
-      }, () => setPanel('panel-snake', readLocalLB('snakeLB').slice(0, TOP), false));
+      snap => setPanel('panel-snake', mergeDesc(snapAll(snap), readLocalLB('snakeLB'), 'score'), false),
+      ()   => setPanel('panel-snake', readLocalLB('snakeLB').sort((a,b)=>b.score-a.score).slice(0,5), false));
 
     db.ref('arcade/space_defenders').on('value',
-      snap => {
-        let rows = snapAll(snap).sort((a,b) => b.score - a.score).slice(0, TOP);
-        if (!rows.length) rows = readLocalLB('sdLB').slice(0, TOP);
-        setPanel('panel-space', rows, false);
-      }, () => setPanel('panel-space', readLocalLB('sdLB').slice(0, TOP), false));
+      snap => setPanel('panel-space', mergeDesc(snapAll(snap), readLocalLB('sdLB'), 'score'), false),
+      ()   => setPanel('panel-space', readLocalLB('sdLB').sort((a,b)=>b.score-a.score).slice(0,5), false));
 
     db.ref('arcade/minesweeper').on('value',
       snap => {
-        const rows = snapAll(snap).sort((a,b) => a.time - b.time).slice(0, TOP);
+        const rows = snapAll(snap).sort((a,b) => a.time - b.time).slice(0, 5);
         setPanel('panel-minesweeper', rows, 'time');
       }, () => setPanel('panel-minesweeper', [], 'time'));
 
     db.ref('arcade/flappy_bird').on('value',
-      snap => {
-        let rows = snapAll(snap).sort((a,b) => b.score - a.score).slice(0, TOP);
-        if (!rows.length) rows = readLocalLB('flappyLeaderboard_v1').slice(0, TOP);
-        setPanel('panel-flappy', rows, true);
-      }, () => setPanel('panel-flappy', readLocalLB('flappyLeaderboard_v1').slice(0, TOP), true));
+      snap => setPanel('panel-flappy', mergeDesc(snapAll(snap), readLocalLB('flappyLeaderboard_v1'), 'score'), true),
+      ()   => setPanel('panel-flappy', readLocalLB('flappyLeaderboard_v1').sort((a,b)=>b.score-a.score).slice(0,5), true));
 
     db.ref('arcade/kitten_cannon').on('value',
       snap => {
-        const rows = snapAll(snap).sort((a,b) => b.dist - a.dist).slice(0, TOP);
+        const rows = snapAll(snap).sort((a,b) => b.dist - a.dist).slice(0, 5);
         setPanel('panel-kitten', rows, 'dist');
       }, () => setPanel('panel-kitten', [], 'dist'));
   }

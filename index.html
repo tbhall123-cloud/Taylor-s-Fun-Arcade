@@ -519,6 +519,10 @@
         <div class="lb-panel-title"><span class="lb-dot" style="background:#ffd700"></span>FLAPPY BIRD</div>
         <p class="lb-empty">Loading...</p>
       </div>
+      <div class="lb-panel" id="panel-kitten">
+        <div class="lb-panel-title"><span class="lb-dot" style="background:#ff9966"></span>KITTEN CANNON</div>
+        <p class="lb-empty">Loading...</p>
+      </div>
     </div>
   </section>
 
@@ -542,6 +546,9 @@
     } else if (type === 'time') {
       cols = `<tr><th>#</th><th>NAME</th><th>DIFF</th><th>TIME</th></tr>`;
       rowFn = (e,r) => `<tr><td>${r}</td><td>${e.name}</td><td>${(e.difficulty||'').slice(0,3).toUpperCase()}</td><td>${e.time}s</td></tr>`;
+    } else if (type === 'dist') {
+      cols = `<tr><th>#</th><th>NAME</th><th>DIST</th></tr>`;
+      rowFn = (e,r) => `<tr><td>${r}</td><td>${e.name}</td><td>${e.dist} ft</td></tr>`;
     } else {
       cols = `<tr><th>#</th><th>NAME</th><th>SCORE</th><th>LVL</th></tr>`;
       rowFn = (e,r) => `<tr><td>${r}</td><td>${e.name}</td><td>${e.score}</td><td>${e.level||'-'}</td></tr>`;
@@ -563,6 +570,7 @@
     setPanel('panel-space',       readLocalLB('sdLB').slice(0,5),                 false);
     setPanel('panel-minesweeper', [],                                              'time');
     setPanel('panel-flappy',      readLocalLB('flappyLeaderboard_v1').slice(0,5), true);
+    setPanel('panel-kitten',      [],                                               'dist');
   }
 
   function snapAll(snap) {
@@ -603,6 +611,12 @@
         const rows = snapAll(snap).sort((a,b) => b.score - a.score).slice(0, TOP);
         setPanel('panel-flappy', rows, true);
       }, () => setPanel('panel-flappy', [], true));
+
+    db.ref('arcade/kitten_cannon').on('value',
+      snap => {
+        const rows = snapAll(snap).sort((a,b) => b.dist - a.dist).slice(0, TOP);
+        setPanel('panel-kitten', rows, 'dist');
+      }, () => setPanel('panel-kitten', [], 'dist'));
   }
 
   loadOnline();

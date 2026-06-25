@@ -499,6 +499,7 @@
   }
 
   function snapToRows(snap, limit) {
+    if (!snap || !snap.exists()) return [];
     const rows = [];
     snap.forEach(c => rows.unshift(c.val()));
     return rows.slice(0, limit);
@@ -510,16 +511,16 @@
     document.getElementById('lb-status').textContent = '🌐 online';
 
     const TOP = 5;
+    const err = () => {}; // on error: leave empty-state showing
 
-    // Real-time listeners for each game
     db.ref('arcade/snake').orderByChild('score').limitToLast(TOP)
-      .on('value', snap => setPanel('panel-snake', snapToRows(snap, TOP), false));
+      .on('value', snap => setPanel('panel-snake', snapToRows(snap, TOP), false), err);
 
     db.ref('arcade/space_defenders').orderByChild('score').limitToLast(TOP)
-      .on('value', snap => setPanel('panel-space', snapToRows(snap, TOP), false));
+      .on('value', snap => setPanel('panel-space', snapToRows(snap, TOP), false), err);
 
     db.ref('arcade/flappy_bird').orderByChild('score').limitToLast(TOP)
-      .on('value', snap => setPanel('panel-flappy', snapToRows(snap, TOP), true));
+      .on('value', snap => setPanel('panel-flappy', snapToRows(snap, TOP), true), err);
   }
 
   loadOnline();

@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Taylor's Arcade</title>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:       #0f0f1a;
+      --surface:  #1a1a2e;
+      --border:   #2a2a4a;
+      --accent:   #4ecca3;
+      --red:      #e94560;
+      --gold:     #ffd700;
+      --text:     #eee;
+      --muted:    #777;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ─────────────────────────────────────── */
+    header {
+      text-align: center;
+      padding: 56px 24px 40px;
+      position: relative;
+    }
+
+    header::after {
+      content: '';
+      display: block;
+      width: 80px;
+      height: 2px;
+      background: var(--accent);
+      margin: 20px auto 0;
+    }
+
+    .title {
+      font-size: clamp(2rem, 6vw, 3.6rem);
+      letter-spacing: 8px;
+      color: var(--accent);
+      text-shadow: 0 0 40px rgba(78,204,163,0.35);
+    }
+
+    .subtitle {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 0.9rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+
+    /* ── Grid ───────────────────────────────────────── */
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 24px;
+      padding: 16px 40px 60px;
+      max-width: 1100px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    /* ── Card ───────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.18s, border-color 0.18s, box-shadow 0.18s;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      border-color: var(--accent);
+      box-shadow: 0 8px 32px rgba(78,204,163,0.12);
+    }
+
+    .card.coming-soon {
+      opacity: 0.45;
+      cursor: default;
+      pointer-events: none;
+    }
+
+    .card-thumb {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 4rem;
+      background: #0c0c18;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Snake canvas preview */
+    .thumb-snake {
+      background: linear-gradient(135deg, #0c0c18 60%, #0f1a14 100%);
+    }
+
+    .thumb-snake .snake-art {
+      display: flex;
+      gap: 3px;
+      position: relative;
+    }
+
+    .thumb-snake .seg {
+      width: 22px;
+      height: 22px;
+      border-radius: 5px;
+    }
+
+    .thumb-snake .seg.head { background: #4ecca3; }
+    .thumb-snake .seg.body { background: #1e9060; }
+    .thumb-snake .seg.tail { background: #1a6040; }
+
+    .thumb-snake .food {
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      background: #e94560;
+      position: absolute;
+      right: -32px;
+      top: 3px;
+    }
+
+    .thumb-coming {
+      background: #0c0c18;
+      color: var(--muted);
+      font-size: 2.5rem;
+    }
+
+    .card-badge {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 0.65rem;
+      letter-spacing: 1.5px;
+      padding: 3px 8px;
+      border-radius: 3px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .badge-live  { background: var(--accent); color: #0f0f1a; }
+    .badge-soon  { background: var(--border); color: var(--muted); }
+
+    .card-body {
+      padding: 18px 20px 22px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .card-title {
+      font-size: 1.15rem;
+      letter-spacing: 3px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .card-desc {
+      font-size: 0.82rem;
+      color: var(--muted);
+      line-height: 1.55;
+      flex: 1;
+    }
+
+    .card-tags {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+
+    .tag {
+      font-size: 0.68rem;
+      letter-spacing: 1px;
+      padding: 2px 7px;
+      border-radius: 3px;
+      background: var(--border);
+      color: #aaa;
+    }
+
+    .tag.accent { background: rgba(78,204,163,0.12); color: var(--accent); }
+
+    .card-footer {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .play-btn {
+      font-size: 0.75rem;
+      letter-spacing: 2px;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+    }
+
+    .arrow { transition: transform 0.18s; }
+    .card:hover .arrow { transform: translateX(4px); }
+
+    /* ── Footer ─────────────────────────────────────── */
+    footer {
+      text-align: center;
+      padding: 20px;
+      color: #333;
+      font-size: 0.75rem;
+      letter-spacing: 1px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Scanline overlay (subtle) ──────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent 2px,
+        rgba(0,0,0,0.04) 2px,
+        rgba(0,0,0,0.04) 4px
+      );
+      pointer-events: none;
+      z-index: 999;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1 class="title">TAYLOR'S ARCADE</h1>
+    <p class="subtitle">Pick a game &amp; play</p>
+  </header>
+
+  <main>
+
+    <!-- ── Snake ── -->
+    <a href="snake.html" class="card">
+      <div class="card-thumb thumb-snake">
+        <div class="snake-art">
+          <div class="seg head"></div>
+          <div class="seg body"></div>
+          <div class="seg body"></div>
+          <div class="seg tail"></div>
+          <div class="food"></div>
+        </div>
+        <span class="card-badge badge-live">Live</span>
+      </div>
+      <div class="card-body">
+        <div class="card-title">SNAKE</div>
+        <div class="card-desc">
+          Classic snake with levels, combos, power-ups, portals, and a leaderboard.
+          Eat quickly to chain a score multiplier.
+        </div>
+        <div class="card-tags">
+          <span class="tag accent">Arcade</span>
+          <span class="tag">Keyboard</span>
+          <span class="tag">Leaderboard</span>
+        </div>
+        <div class="card-footer">
+          <span class="play-btn">Play now <span class="arrow">→</span></span>
+        </div>
+      </div>
+    </a>
+
+    <!-- ── Space Defenders ── -->
+    <a href="space-defenders.html" class="card">
+      <div class="card-thumb" style="background:radial-gradient(ellipse at 50% 120%, #1a0a2e 0%, #05050f 70%);">
+        <svg width="120" height="70" viewBox="0 0 120 70" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- enemies row -->
+          <rect x="10" y="8" width="14" height="10" rx="2" fill="#e94560"/>
+          <rect x="32" y="8" width="14" height="10" rx="2" fill="#e94560"/>
+          <rect x="54" y="8" width="14" height="10" rx="2" fill="#f39c12"/>
+          <rect x="76" y="8" width="14" height="10" rx="2" fill="#f39c12"/>
+          <rect x="98" y="8" width="14" height="10" rx="2" fill="#aa88ff"/>
+          <!-- player ship -->
+          <polygon points="60,58 48,70 72,70" fill="#4ecca3"/>
+          <circle cx="60" cy="63" r="3" fill="#0f0f1a"/>
+          <!-- bullet -->
+          <rect x="59" y="42" width="3" height="10" rx="1" fill="#4ecca3"/>
+        </svg>
+        <span class="card-badge badge-live">Live</span>
+      </div>
+      <div class="card-body">
+        <div class="card-title">SPACE DEFENDERS</div>
+        <div class="card-desc">
+          Classic space shooter with enemy formations, boss battles every 5 levels, power-ups, and shields. Gets harder fast.
+        </div>
+        <div class="card-tags">
+          <span class="tag accent">Shooter</span>
+          <span class="tag">Keyboard</span>
+          <span class="tag">Boss Fights</span>
+          <span class="tag">Leaderboard</span>
+        </div>
+        <div class="card-footer">
+          <span class="play-btn">Play now <span class="arrow">→</span></span>
+        </div>
+      </div>
+    </a>
+
+    <!-- ── Minesweeper ── -->
+    <a href="minesweeper.html" class="card">
+      <div class="card-thumb" style="background:radial-gradient(ellipse at 50% 50%, #1a1a0a 0%, #0a0a05 100%);">
+        <svg width="130" height="80" viewBox="0 0 130 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- grid cells -->
+          <rect x="8"  y="8"  width="16" height="16" rx="2" fill="#2a2a1a" stroke="#3a3a2a" stroke-width="1"/>
+          <rect x="28" y="8"  width="16" height="16" rx="2" fill="#2a2a1a" stroke="#3a3a2a" stroke-width="1"/>
+          <rect x="48" y="8"  width="16" height="16" rx="2" fill="#1a1a2e" stroke="#3a3a4a" stroke-width="1"/>
+          <rect x="68" y="8"  width="16" height="16" rx="2" fill="#2a2a1a" stroke="#3a3a2a" stroke-width="1"/>
+          <rect x="88" y="8"  width="16" height="16" rx="2" fill="#2a2a1a" stroke="#3a3a2a" stroke-width="1"/>
+          <rect x="108" y="8" width="16" height="16" rx="2" fill="#2a2a1a" stroke="#3a3a2a" stroke-width="1"/>
+
+          <rect x="8"  y="28" width="16" height="16" rx="2" fill="#1a1a2e" stroke="#3a3a4a" stroke-width="1"/>
+          <rect x="28" y="28" width="16" height="16" rx="2" fill="#2a2a1a" stroke="#3a3a2a" stroke-width="1"/>
+          <rect x="48" y="28" width="16" height="16" rx="2" fill="#2a2a1a" stroke="#3a3a2a" stroke-width="1"/>
+          <rect x="68" y="28" width="16" height="16" rx="2" fill="#1a1a2e" stroke="#3a3a4a" stroke-width="1"/>
+          <rect x="88" y="28" width="16" height="16" rx="2" fill="#2a2a1a" stroke="#3a3a2a" stroke-width="1"/>
+          <rect x="108" y="28" width="16" height="16" rx="2" fill="#2a2a1a" stroke="#3a3a2a" stroke-width="1"/>
+
+          <rect x="8"  y="48" width="16" height="16" rx="2" fill="#2a2a1a" stroke="#3a3a2a" stroke-width="1"/>
+          <rect x="28" y="48" width="16" height="16" rx="2" fill="#1a1a2e" stroke="#3a3a4a" stroke-width="1"/>
+          <rect x="48" y="48" width="16" height="16" rx="2" fill="#2a2a1a" stroke="#3a3a2a" stroke-width="1"/>
+          <rect x="68" y="48" width="16" height="16" rx="2" fill="#2a2a1a" stroke="#3a3a2a" stroke-width="1"/>
+          <rect x="88" y="48" width="16" height="16" rx="2" fill="#1a1a2e" stroke="#3a3a4a" stroke-width="1"/>
+          <rect x="108" y="48" width="16" height="16" rx="2" fill="#2a2a1a" stroke="#3a3a2a" stroke-width="1"/>
+
+          <!-- number "2" in revealed cell -->
+          <text x="55" y="22" font-size="11" fill="#007b00" font-weight="bold" text-anchor="middle" font-family="monospace">2</text>
+          <!-- number "1" in revealed cell -->
+          <text x="15" y="42" font-size="11" fill="#0000f0" font-weight="bold" text-anchor="middle" font-family="monospace">1</text>
+          <!-- flag in a cell -->
+          <text x="75" y="42" font-size="11" text-anchor="middle">🚩</text>
+          <!-- mine in a cell -->
+          <text x="35" y="62" font-size="11" text-anchor="middle">💣</text>
+
+          <!-- big mine in center-right -->
+          <circle cx="96" cy="38" r="9" fill="#ffd700" opacity="0.9"/>
+          <line x1="96" y1="26" x2="96" y2="22" stroke="#ffd700" stroke-width="2" stroke-linecap="round"/>
+          <line x1="96" y1="50" x2="96" y2="54" stroke="#ffd700" stroke-width="2" stroke-linecap="round"/>
+          <line x1="84" y1="38" x2="80" y2="38" stroke="#ffd700" stroke-width="2" stroke-linecap="round"/>
+          <line x1="108" y1="38" x2="112" y2="38" stroke="#ffd700" stroke-width="2" stroke-linecap="round"/>
+          <line x1="88" y1="30" x2="85" y2="27" stroke="#ffd700" stroke-width="2" stroke-linecap="round"/>
+          <line x1="104" y1="46" x2="107" y2="49" stroke="#ffd700" stroke-width="2" stroke-linecap="round"/>
+          <line x1="104" y1="30" x2="107" y2="27" stroke="#ffd700" stroke-width="2" stroke-linecap="round"/>
+          <line x1="88" y1="46" x2="85" y2="49" stroke="#ffd700" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="92" cy="34" r="2.5" fill="#0a0a05" opacity="0.5"/>
+        </svg>
+        <span class="card-badge badge-live">Live</span>
+      </div>
+      <div class="card-body">
+        <div class="card-title">MINESWEEPER</div>
+        <div class="card-desc">
+          Classic logic puzzle. Reveal safe cells, flag the mines. First click is always safe. Three difficulty levels.
+        </div>
+        <div class="card-tags">
+          <span class="tag accent">Puzzle</span>
+          <span class="tag">Mouse</span>
+          <span class="tag">Classic</span>
+        </div>
+        <div class="card-footer">
+          <span class="play-btn">Play now <span class="arrow">→</span></span>
+        </div>
+      </div>
+    </a>
+
+    <!-- ── Flappy Bird ── -->
+    <a href="flappy_bird.html" class="card">
+      <div class="card-thumb" style="background:linear-gradient(160deg,#5a9ec8 0%,#a8d4f0 60%,#d0eafb 100%); overflow:hidden;">
+        <!-- Sky -->
+        <!-- Pipes -->
+        <svg width="100%" height="100%" viewBox="0 0 160 90" preserveAspectRatio="xMidYMid slice" style="position:absolute;inset:0;">
+          <!-- Ground -->
+          <rect x="0" y="76" width="160" height="14" fill="#3a5a30"/>
+          <rect x="0" y="76" width="160" height="5" fill="#b0c8b0"/>
+          <!-- Pipe top -->
+          <rect x="100" y="0"  width="20" height="38" fill="#4aa8c8"/>
+          <rect x="97"  y="33" width="26" height="8"  fill="#2a88a8"/>
+          <!-- Pipe bottom -->
+          <rect x="100" y="56" width="20" height="20" fill="#4aa8c8"/>
+          <rect x="97"  y="56" width="26" height="8"  fill="#2a88a8"/>
+          <!-- Bird (yellow circle with eye + beak) -->
+          <circle cx="52" cy="45" r="11" fill="#FFD700"/>
+          <circle cx="56" cy="41" r="5"  fill="white"/>
+          <circle cx="57" cy="41" r="2.5" fill="#111"/>
+          <circle cx="58" cy="40" r="1"  fill="white"/>
+          <polygon points="63,43 70,45 63,47" fill="#FF6B35"/>
+          <!-- Country flags hinting at world tour -->
+          <text x="8"  y="20" font-size="9" opacity="0.55">🇨🇦</text>
+          <text x="26" y="20" font-size="9" opacity="0.55">🇯🇵</text>
+          <text x="44" y="20" font-size="9" opacity="0.55">🇪🇬</text>
+          <text x="62" y="20" font-size="9" opacity="0.55">🇧🇷</text>
+        </svg>
+        <span class="card-badge badge-live">Live</span>
+      </div>
+      <div class="card-body">
+        <div class="card-title">FLAPPY BIRD</div>
+        <div class="card-desc">
+          Tap to fly through pipes across 8 countries. Play as a bird, bull, or lion.
+          Collect power-ups and unlock a new world every 10 points.
+        </div>
+        <div class="card-tags">
+          <span class="tag accent">Arcade</span>
+          <span class="tag">Click / Tap</span>
+          <span class="tag">World Tour</span>
+          <span class="tag">Leaderboard</span>
+        </div>
+        <div class="card-footer">
+          <span class="play-btn">Play now <span class="arrow">→</span></span>
+        </div>
+      </div>
+    </a>
+
+  </main>
+
+  <!-- ── Leaderboards ── -->
+  <section id="leaderboards">
+    <h2 class="lb-heading">
+      🏆 LEADERBOARDS
+      <span id="lb-status" class="lb-status"></span>
+    </h2>
+    <div class="lb-grid" id="lb-grid">
+      <div class="lb-panel" id="panel-snake">
+        <div class="lb-panel-title"><span class="lb-dot" style="background:#4ecca3"></span>SNAKE</div>
+        <p class="lb-empty">Loading...</p>
+      </div>
+      <div class="lb-panel" id="panel-space">
+        <div class="lb-panel-title"><span class="lb-dot" style="background:#e94560"></span>SPACE DEFENDERS</div>
+        <p class="lb-empty">Loading...</p>
+      </div>
+      <div class="lb-panel" id="panel-flappy">
+        <div class="lb-panel-title"><span class="lb-dot" style="background:#ffd700"></span>FLAPPY BIRD</div>
+        <p class="lb-empty">Loading...</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>TAYLOR'S ARCADE &nbsp;·&nbsp; BUILT WITH CLAUDE CODE</footer>
+
+</body>
+<script>
+  const CHAR_EMOJI = { bird:'🐦', bull:'🐂', lion:'🦁', bear:'🐻' };
+  const medals = ['🥇','🥈','🥉'];
+
+  function readLocalLB(key) {
+    try { return JSON.parse(localStorage.getItem(key)||'[]'); } catch { return []; }
+  }
+
+  function buildScoreTable(rows, hasChar) {
+    if (!rows.length) return '<p class="lb-empty">No scores yet — be the first!</p>';
+    const cols = hasChar
+      ? `<tr><th>#</th><th>NAME</th><th>CHAR</th><th>SCORE</th></tr>`
+      : `<tr><th>#</th><th>NAME</th><th>SCORE</th><th>LVL</th></tr>`;
+    let h = `<table class="lb-table"><thead>${cols}</thead><tbody>`;
+    rows.forEach((e,i) => {
+      const rank = medals[i] || `#${i+1}`;
+      if (hasChar) {
+        h += `<tr><td>${rank}</td><td>${e.name}</td><td>${CHAR_EMOJI[e.char]||''}</td><td>${e.score}</td></tr>`;
+      } else {
+        h += `<tr><td>${rank}</td><td>${e.name}</td><td>${e.score}</td><td>${e.level||'-'}</td></tr>`;
+      }
+    });
+    return h + '</tbody></table>';
+  }
+
+  function setPanel(id, rows, hasChar) {
+    const panel = document.getElementById(id);
+    const title = panel.querySelector('.lb-panel-title').outerHTML;
+    panel.innerHTML = title + buildScoreTable(rows, hasChar);
+  }
+
+  function showOffline() {
+    document.getElementById('lb-status').textContent = '(local only — Firebase not configured)';
+    setPanel('panel-snake',  readLocalLB('snakeLB').slice(0,5),           false);
+    setPanel('panel-space',  readLocalLB('sdLB').slice(0,5),              false);
+    setPanel('panel-flappy', readLocalLB('flappyLeaderboard_v1').slice(0,5), true);
+  }
+
+  function snapToRows(snap, limit) {
+    const rows = [];
+    snap.forEach(c => rows.unshift(c.val()));
+    return rows.slice(0, limit);
+  }
+
+  function loadOnline() {
+    const db = window.arcadeDB;
+    if (!db) { showOffline(); return; }
+    document.getElementById('lb-status').textContent = '🌐 online';
+
+    const TOP = 5;
+
+    // Real-time listeners for each game
+    db.ref('arcade/snake').orderByChild('score').limitToLast(TOP)
+      .on('value', snap => setPanel('panel-snake', snapToRows(snap, TOP), false));
+
+    db.ref('arcade/space_defenders').orderByChild('score').limitToLast(TOP)
+      .on('value', snap => setPanel('panel-space', snapToRows(snap, TOP), false));
+
+    db.ref('arcade/flappy_bird').orderByChild('score').limitToLast(TOP)
+      .on('value', snap => setPanel('panel-flappy', snapToRows(snap, TOP), true));
+  }
+
+  loadOnline();
+</script>
+<style>
+  #leaderboards {
+    width: 100%;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 40px 60px;
+  }
+
+  .lb-heading {
+    font-size: 0.75rem;
+    letter-spacing: 4px;
+    color: var(--muted);
+    text-align: center;
+    margin-bottom: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+  }
+
+  .lb-status {
+    font-size: 0.6rem;
+    letter-spacing: 1px;
+    color: var(--accent);
+    opacity: 0.7;
+  }
+
+  .lb-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 20px;
+  }
+
+  .lb-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+
+  .lb-panel-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.7rem;
+    letter-spacing: 3px;
+    color: var(--muted);
+    margin-bottom: 12px;
+    text-transform: uppercase;
+  }
+
+  .lb-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+  }
+
+  .lb-table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.82rem;
+  }
+
+  .lb-table th {
+    color: var(--accent);
+    padding: 3px 10px;
+    text-align: left;
+    font-size: 0.65rem;
+    letter-spacing: 1px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .lb-table td { padding: 5px 10px; color: #bbb; }
+  .lb-table tbody tr:nth-child(odd) td { background: rgba(255,255,255,0.02); }
+
+  .lb-empty {
+    color: #444;
+    font-size: 0.8rem;
+    text-align: center;
+    padding: 12px 0;
+  }
+</style>
+</html>

@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Snake</title>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #1a1a2e;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      min-height: 100vh; padding: 24px;
+      font-family: 'Segoe UI', sans-serif; color: #eee;
+    }
+    h1 { font-size: 2rem; margin-bottom: 12px; letter-spacing: 4px; color: #4ecca3; }
+    #scoreboard {
+      display: flex; gap: 28px; margin-bottom: 14px; font-size: 1rem;
+      color: #aaa; align-items: center; flex-wrap: wrap; justify-content: center;
+    }
+    #scoreboard .label { color: #aaa; }
+    #scoreboard .val   { color: #fff; font-weight: bold; }
+    #lives-wrap { display: flex; align-items: center; gap: 4px; min-width: 20px; }
+    .heart { color: #e94560; font-size: 1.3rem; line-height: 1; }
+    canvas { border: 2px solid #4ecca3; border-radius: 4px; display: block; }
+    #overlay {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 12px;
+      background: rgba(10,10,22,0.92); border-radius: 4px; overflow-y: auto; padding: 20px;
+    }
+    #overlay h2    { font-size: 2.2rem; letter-spacing: 3px; }
+    #overlay .sub  { color: #aaa; font-size: 0.95rem; }
+    #overlay .hint { color: #555; font-size: 0.8rem; }
+    #overlay button {
+      margin-top: 4px; padding: 10px 36px; font-size: 1rem;
+      background: #4ecca3; color: #1a1a2e; border: none;
+      border-radius: 4px; cursor: pointer; font-weight: bold; letter-spacing: 1px;
+    }
+    #overlay button:hover { background: #38b08a; }
+    .lb-wrap  { width: 100%; max-width: 300px; }
+    .lb-title { color: #4ecca3; font-size: 0.7rem; letter-spacing: 2px; text-align: center; margin-bottom: 6px; }
+    .lb-table { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
+    .lb-table th { color: #4ecca3; padding: 3px 10px; text-align: left; font-size: 0.68rem; letter-spacing: 1px; border-bottom: 1px solid #2a2a4a; }
+    .lb-table td  { padding: 3px 10px; color: #bbb; }
+    .lb-table tbody tr:nth-child(odd) td { background: rgba(255,255,255,0.02); }
+    .lb-new td { color: #ffd700 !important; font-weight: bold; }
+    .lb-empty { color: #444; font-size: 0.82rem; text-align: center; padding: 8px 0; }
+    .item-key { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; max-width: 320px; }
+    .item-key span { font-size: 0.75rem; color: #666; }
+    #name-input {
+      background: #0f0f1a; border: 2px solid #4ecca3; border-radius: 4px;
+      color: #fff; font-size: 2rem; letter-spacing: 14px; text-align: center;
+      width: 148px; padding: 8px 4px 8px 18px; text-transform: uppercase;
+      font-family: 'Courier New', monospace; font-weight: bold; caret-color: #4ecca3;
+    }
+    #name-input:focus { outline: none; border-color: #ffd700; box-shadow: 0 0 12px rgba(255,215,0,0.25); }
+    #home-btn {
+      position: fixed; top: 14px; right: 16px;
+      font-size: 0.7rem; letter-spacing: 2px; font-weight: 700;
+      color: #555; text-decoration: none; text-transform: uppercase;
+      padding: 5px 10px; border: 1px solid #2a2a4a; border-radius: 4px;
+      transition: color 0.15s, border-color 0.15s;
+      background: rgba(15,15,26,0.85);
+    }
+    #home-btn:hover { color: #4ecca3; border-color: #4ecca3; }
+  </style>
+</head>
+<body>
+  <a id="home-btn" href="Main Page.html">← ARCADE</a>
+  <h1>SNAKE</h1>
+  <div id="scoreboard">
+    <span class="label">Score:</span><span class="val" id="score">0</span>
+    <span class="label">Best:</span><span class="val" id="best">0</span>
+    <span class="label">Level:</span><span class="val" id="level-el">1</span>
+    <span class="label">Lives:</span><span id="lives-wrap"></span>
+  </div>
+  <div style="position:relative">
+    <canvas id="canvas"></canvas>
+    <div id="overlay"></div>
+  </div>
+
+  <script>
+    const canvas    = document.getElementById('canvas');
+    const ctx       = canvas.getContext('2d');
+    const overlay   = document.getElementById('overlay');
+    const scoreEl   = document.getElementById('score');
+    const bestEl    = document.getElementById('best');
+    const levelEl   = document.getElementById('level-el');
+    const livesWrap = document.getElementById('lives-wrap');
+
+    const CELL = 20;
+    const overhead = document.querySelector('h1').offsetHeight
+                   + document.getElementById('scoreboard').offsetHeight + 80;
+    const maxDim = Math.min(window.innerWidth - 48, window.innerHeight - overhead);
+    canvas.width = canvas.height = Math.floor(maxDim / CELL) * CELL;
+    const COLS = canvas.width  / CELL;
+    const ROWS = canvas.height / CELL;
+
+    const BASE_MS      = 120;
+    const SPEED_INC    = 8;
+    const BASE_FOOD    = 5;
+    const FOOD_INC     = 2;
+    const BONUS_CHANCE = 0.18;
+    const OBS_PER_LVL  = 3;
+    const GOLDEN_MS    = 14000;
+    const DECAYING_MS  = 7000;
+    const COMBO_WINDOW = 2400;
+    const MAGNET_MS    = 9000;
+    const SLOWDOWN_MS  = 7000;
+    const PORTAL_MS    = 18000;
+    const SLOW_FACTOR  = 1.9;   // multiplier applied to step interval
+    const PU_EXPIRE_MS = 22000; // how long a powerup pickup sits on the board
+
+    // ── Leaderboard ───────────────────────────────────────────────────────
+    function loadLB() {
+      try { return JSON.parse(localStorage.getItem('snakeLB') || '[]'); } catch { return []; }
+    }
+    function saveLB(lb) { localStorage.setItem('snakeLB', JSON.stringify(lb)); }
+    function isTopTen(s) { const lb = loadLB(); return lb.length < 10 || s > lb[lb.length-1].score; }
+    function recordScore(name, s, lvl) {
+      const lb = loadLB();
+      const entry = { name: name.toUpperCase().padEnd(3,'?').slice(0,3), score: s, level: lvl };
+      lb.push(entry); lb.sort((a,b) => b.score - a.score); lb.splice(10);
+      const rank = lb.findIndex(e => e.name===entry.name && e.score===s && e.level===lvl);
+      saveLB(lb);
+      if (window.arcadeDB) {
+        window.arcadeDB.ref('arcade/snake').push({ name:entry.name, score:s, level:lvl, ts:Date.now() }).catch(()=>{});
+      }
+      return { lb, rank };
+    }
+    function buildLBTable(lb, hi) {
+      if (!lb.length) return '<p class="lb-empty">No scores yet — be the first!</p>';
+      let h = '<table class="lb-table"><thead><tr><th>#</th><th>NAME</th><th>SCORE</th><th>LVL</th></tr></thead><tbody>';
+      lb.forEach((e,i) => { h += `<tr${i===hi?' class="lb-new"':''}><td>${i+1}</td><td>${e.name}</td><td>${e.score}</td><td>${e.level}</td></tr>`; });
+      return h + '</tbody></table>';
+    }
+
+    // ── State ─────────────────────────────────────────────────────────────
+    let snake, dir, nextDir, food, bonusFood, obstacles, specials, floatingTexts;
+    let powerups, portals, activeEffects, magnetStep;
+    let score, best, lives, level, levelEaten, gameLoop, running, state;
+    let stepCount, lastEatTime, comboCount;
+    best = 0;
+
+    // ── Helpers ───────────────────────────────────────────────────────────
+    function foodNeeded(lvl) { return BASE_FOOD + (lvl-1) * FOOD_INC; }
+    function stepMs(lvl)     { return Math.max(50, BASE_MS - (lvl-1) * SPEED_INC); }
+    function obsCount(lvl)   { return Math.min((lvl-1) * OBS_PER_LVL, 40); }
+    function el(tag, props)  { const e = document.createElement(tag); Object.assign(e, props); return e; }
+
+    function renderLives() {
+      livesWrap.innerHTML = '';
+      for (let i = 0; i < lives; i++) livesWrap.appendChild(el('span', { className:'heart', textContent:'♥' }));
+      if (lives === 0) livesWrap.textContent = '—';
+    }
+
+    function addFloat(gx, gy, text, color, size) {
+      floatingTexts.push({ x: gx*CELL+CELL/2, y: gy*CELL, text, color, size: size||13, life: 30, maxLife: 30 });
+    }
+
+    function eatCombo() {
+      const now = Date.now();
+      comboCount = (now - lastEatTime < COMBO_WINDOW) ? comboCount + 1 : 1;
+      lastEatTime = now;
+      return comboCount;
+    }
+
+    // ── Init ──────────────────────────────────────────────────────────────
+    function initLevel() {
+      const cx = Math.floor(COLS/2), cy = Math.floor(ROWS/2);
+      snake = [{ x:cx, y:cy }, { x:cx-1, y:cy }, { x:cx-2, y:cy }];
+      dir = nextDir = { x:1, y:0 };
+      levelEaten = 0; bonusFood = null;
+      specials = []; floatingTexts = []; powerups = []; portals = [];
+      activeEffects = { magnet: 0, slowdown: 0 };
+      magnetStep = 0; stepCount = 0; lastEatTime = 0; comboCount = 0;
+      placeObstacles(); placeFood();
+    }
+
+    function initGame() {
+      score = 0; lives = 0; level = 1;
+      scoreEl.textContent = score; levelEl.textContent = level;
+      renderLives(); initLevel();
+    }
+
+    function placeObstacles() {
+      obstacles = [];
+      const count = obsCount(level);
+      const cx = Math.floor(COLS/2), cy = Math.floor(ROWS/2);
+      let tries = 0;
+      while (obstacles.length < count && tries < count*20) {
+        tries++;
+        const p = { x: Math.floor(Math.random()*COLS), y: Math.floor(Math.random()*ROWS) };
+        if (Math.abs(p.x-cx) < 5 && Math.abs(p.y-cy) < 3) continue;
+        if (obstacles.some(o => o.x===p.x && o.y===p.y)) continue;
+        obstacles.push(p);
+      }
+    }
+
+    function placeFood() {
+      food = freeCell();
+      if (!bonusFood && Math.random() < BONUS_CHANCE) bonusFood = freeCell();
+    }
+
+    function trySpawnSpecials() {
+      // Food specials
+      if (!specials.some(s => s.type==='golden') && Math.random() < 0.13)
+        spawnSpecial('golden', GOLDEN_MS);
+      if (specials.filter(s => s.type==='decaying').length < 2 && Math.random() < 0.22)
+        spawnSpecial('decaying', DECAYING_MS);
+      // Power-up pickups
+      if (!powerups.some(p => p.type==='magnet') && Math.random() < 0.09)
+        spawnPowerup('magnet');
+      if (!powerups.some(p => p.type==='slowdown') && Math.random() < 0.09)
+        spawnPowerup('slowdown');
+      // Portals
+      if (portals.length === 0 && Math.random() < 0.07)
+        spawnPortals();
+    }
+
+    function spawnSpecial(type, duration) {
+      const pos = freeCell();
+      specials.push({ x:pos.x, y:pos.y, type, expiresAt: Date.now()+duration, duration });
+    }
+
+    function spawnPowerup(type) {
+      const pos = freeCell();
+      powerups.push({ x:pos.x, y:pos.y, type, expiresAt: Date.now()+PU_EXPIRE_MS });
+    }
+
+    function spawnPortals() {
+      const a = freeCell();
+      const b = freeCell(a);
+      const hue = Math.floor(Math.random() * 360);
+      portals.push({ a, b, color: `hsl(${hue},100%,65%)`, expiresAt: Date.now()+PORTAL_MS });
+    }
+
+    // freeCell avoids snake, obstacles, food, specials, powerups, portals, and an optional extra cell
+    function freeCell(avoid) {
+      let pos, tries = 0;
+      do {
+        pos = { x: Math.floor(Math.random()*COLS), y: Math.floor(Math.random()*ROWS) };
+        tries++;
+      } while (tries < 500 && (
+        snake.some(s => s.x===pos.x && s.y===pos.y) ||
+        obstacles.some(o => o.x===pos.x && o.y===pos.y) ||
+        (food && food.x===pos.x && food.y===pos.y) ||
+        (bonusFood && bonusFood.x===pos.x && bonusFood.y===pos.y) ||
+        specials.some(s => s.x===pos.x && s.y===pos.y) ||
+        powerups.some(p => p.x===pos.x && p.y===pos.y) ||
+        portals.some(p => (p.a.x===pos.x && p.a.y===pos.y) || (p.b.x===pos.x && p.b.y===pos.y)) ||
+        (avoid && avoid.x===pos.x && avoid.y===pos.y)
+      ));
+      return pos;
+    }
+
+    // Nudge one food cell toward snake head (called when magnet is active)
+    function attractFood(f) {
+      const h = snake[0];
+      const dx = h.x - f.x, dy = h.y - f.y;
+      if (dx === 0 && dy === 0) return;
+      let nx = f.x, ny = f.y;
+      if (Math.abs(dx) >= Math.abs(dy)) nx += Math.sign(dx);
+      else                              ny += Math.sign(dy);
+      if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) return;
+      if (obstacles.some(o => o.x===nx && o.y===ny)) return;
+      // Avoid stacking foods on each other
+      if (food !== f && food.x===nx && food.y===ny) return;
+      if (bonusFood && bonusFood !== f && bonusFood.x===nx && bonusFood.y===ny) return;
+      if (specials.some(s => s !== f && s.x===nx && s.y===ny)) return;
+      f.x = nx; f.y = ny;
+    }
+
+    // ── Game loop ─────────────────────────────────────────────────────────
+    function step() {
+      const now = Date.now();
+      dir = nextDir;
+      let head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+
+      // ── Portal warp (before collision checks) ─────────────────────────
+      let warpedPortalColor = null;
+      for (const p of portals) {
+        const hit = (p.a.x===head.x && p.a.y===head.y) ? p.b
+                  : (p.b.x===head.x && p.b.y===head.y) ? p.a : null;
+        if (hit) {
+          head = { x: hit.x, y: hit.y };
+          warpedPortalColor = p.color;
+          break;
+        }
+      }
+
+      // ── Collision checks ──────────────────────────────────────────────
+      if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS) return loseLife();
+      if (snake.some(s => s.x===head.x && s.y===head.y))                 return loseLife();
+      if (obstacles.some(o => o.x===head.x && o.y===head.y))             return loseLife();
+
+      if (warpedPortalColor) addFloat(head.x, head.y, 'WARP!', warpedPortalColor, 15);
+
+      snake.unshift(head);
+      let grew = false;
+
+      // ── Regular food ──────────────────────────────────────────────────
+      if (head.x === food.x && head.y === food.y) {
+        grew = true;
+        const mult = eatCombo(), pts = 1 * mult;
+        score += pts; levelEaten++;
+        scoreEl.textContent = score;
+        if (score > best) { best = score; bestEl.textContent = best; }
+        addFloat(head.x, head.y, mult >= 2 ? `+${pts}  ×${mult} COMBO!` : `+1`,
+                 mult >= 2 ? '#ffd700' : '#e94560', mult >= 2 ? 14 : 12);
+        if (levelEaten >= foodNeeded(level)) {
+          draw(); clearInterval(gameLoop); running = false;
+          level++; levelEl.textContent = level; state = 'levelcomplete';
+          showOverlay(`LEVEL ${level-1} CLEAR!`, '#4ecca3',
+            `Level ${level}: faster${obsCount(level)>0?' + obstacles':''}`,
+            'NEXT LEVEL', 'Press Enter or click to continue');
+          return;
+        }
+        placeFood(); trySpawnSpecials();
+      } else {
+        // ── Special food ──────────────────────────────────────────────
+        const si = specials.findIndex(s => s.x===head.x && s.y===head.y);
+        if (si >= 0) {
+          const sp = specials.splice(si, 1)[0];
+          grew = true;
+          const mult = eatCombo();
+          const pts  = (sp.type === 'golden' ? 5 : 2) * mult;
+          const col  = sp.type === 'golden' ? '#ffd700' : '#f39c12';
+          score += pts; scoreEl.textContent = score;
+          if (score > best) { best = score; bestEl.textContent = best; }
+          addFloat(head.x, head.y, mult >= 2 ? `+${pts}  ×${mult} COMBO!` : `+${pts/mult}`, col, sp.type==='golden'?15:13);
+
+        // ── Bonus life ────────────────────────────────────────────────
+        } else if (bonusFood && head.x===bonusFood.x && head.y===bonusFood.y) {
+          lives++; renderLives(); bonusFood = null;
+          addFloat(head.x, head.y, '+1 LIFE ♥', '#e94560', 13);
+
+        // ── Power-up pickup ───────────────────────────────────────────
+        } else {
+          const pi = powerups.findIndex(p => p.x===head.x && p.y===head.y);
+          if (pi >= 0) {
+            const pu = powerups.splice(pi, 1)[0];
+            if (pu.type === 'magnet') {
+              activeEffects.magnet = now + MAGNET_MS;
+              addFloat(head.x, head.y, 'MAGNET!', '#4acfff', 15);
+            } else if (pu.type === 'slowdown') {
+              activeEffects.slowdown = now + SLOWDOWN_MS;
+              clearInterval(gameLoop);
+              gameLoop = setInterval(step, Math.round(stepMs(level) * SLOW_FACTOR));
+              addFloat(head.x, head.y, 'SLOW TIME!', '#aa88ff', 15);
+            }
+          }
+        }
+      }
+
+      if (!grew) snake.pop();
+
+      // ── Magnet: pull food items toward head every 3 steps ─────────────
+      if (activeEffects.magnet > now) {
+        magnetStep++;
+        if (magnetStep % 3 === 0) {
+          attractFood(food);
+          specials.forEach(s => attractFood(s));
+          if (bonusFood) attractFood(bonusFood);
+        }
+      }
+
+      // ── Slowdown expiry ────────────────────────────────────────────────
+      if (activeEffects.slowdown > 0 && now >= activeEffects.slowdown) {
+        activeEffects.slowdown = 0;
+        clearInterval(gameLoop);
+        gameLoop = setInterval(step, stepMs(level));
+      }
+
+      // ── Expire items ───────────────────────────────────────────────────
+      const expiredS = specials.filter(s => s.expiresAt <= now);
+      expiredS.forEach(s => addFloat(s.x, s.y, s.type==='golden' ? 'GONE!' : 'MISS!', '#555', 11));
+      specials  = specials.filter(s => s.expiresAt > now);
+      powerups  = powerups.filter(p => p.expiresAt > now);
+      portals   = portals.filter(p => p.expiresAt > now);
+
+      stepCount++;
+      if (stepCount % 35 === 0) trySpawnSpecials();
+
+      floatingTexts = floatingTexts.filter(ft => --ft.life > 0);
+      draw();
+    }
+
+    function loseLife() {
+      clearInterval(gameLoop); running = false;
+      lives--; renderLives();
+      if (lives < 0) { triggerGameOver(); }
+      else {
+        state = 'death';
+        showOverlay('OUCH!', '#f5a623',
+          `${lives} ${lives===1?'life':'lives'} remaining`,
+          'CONTINUE', 'Press Enter or click to continue');
+      }
+    }
+
+    function triggerGameOver() {
+      if (score > 0 && isTopTen(score)) { state = 'nameentry'; showNameEntry(); }
+      else { state = 'gameover'; showGameOverScreen(loadLB(), -1); }
+    }
+
+    // ── Draw ──────────────────────────────────────────────────────────────
+    function draw() {
+      const now = Date.now();
+
+      ctx.fillStyle = '#0f0f1a';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Slowdown bg tint
+      if (activeEffects.slowdown > now) {
+        const pct = (activeEffects.slowdown - now) / SLOWDOWN_MS;
+        const g = ctx.createRadialGradient(canvas.width/2, canvas.height/2, canvas.width*0.25,
+                                           canvas.width/2, canvas.height/2, canvas.width*0.85);
+        g.addColorStop(0, 'transparent');
+        g.addColorStop(1, `rgba(40,40,180,${pct * 0.28})`);
+        ctx.fillStyle = g; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      // Grid
+      ctx.strokeStyle = '#1a1a30'; ctx.lineWidth = 0.5;
+      for (let x = 0; x <= COLS; x++) { ctx.beginPath(); ctx.moveTo(x*CELL,0); ctx.lineTo(x*CELL,canvas.height); ctx.stroke(); }
+      for (let y = 0; y <= ROWS; y++) { ctx.beginPath(); ctx.moveTo(0,y*CELL); ctx.lineTo(canvas.width,y*CELL); ctx.stroke(); }
+
+      // Level progress bar
+      ctx.fillStyle = '#1f1f3a'; ctx.fillRect(0, 0, canvas.width, 5);
+      ctx.fillStyle = '#4ecca3'; ctx.fillRect(0, 0, canvas.width * (levelEaten/foodNeeded(level)), 5);
+
+      // Obstacles
+      obstacles.forEach(o => {
+        ctx.fillStyle = '#2e2e50';
+        ctx.beginPath(); ctx.roundRect(o.x*CELL+1, o.y*CELL+1, CELL-2, CELL-2, 3); ctx.fill();
+        ctx.strokeStyle = '#4a4a80'; ctx.lineWidth = 1; ctx.stroke();
+        ctx.strokeStyle = '#3a3a6a'; ctx.lineWidth = 1.5;
+        const m=5;
+        ctx.beginPath(); ctx.moveTo(o.x*CELL+m, o.y*CELL+m); ctx.lineTo(o.x*CELL+CELL-m, o.y*CELL+CELL-m);
+        ctx.moveTo(o.x*CELL+CELL-m, o.y*CELL+m); ctx.lineTo(o.x*CELL+m, o.y*CELL+CELL-m); ctx.stroke();
+      });
+
+      // Portals
+      portals.forEach(p => { drawPortalCell(p.a, p.color, now); drawPortalCell(p.b, p.color, now); });
+
+      // Power-up pickups
+      powerups.forEach(p => drawPowerupPickup(p, now));
+
+      // Special foods
+      specials.forEach(s => {
+        if (s.type === 'golden')   drawGolden(s, now);
+        if (s.type === 'decaying') drawDecaying(s, now);
+      });
+
+      // Regular food
+      drawDot(food.x, food.y, '#e94560');
+
+      // Bonus life food
+      if (bonusFood) {
+        drawDot(bonusFood.x, bonusFood.y, '#ffd700');
+        ctx.fillStyle = '#c0392b'; ctx.font = `bold ${CELL-6}px serif`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('♥', bonusFood.x*CELL+CELL/2, bonusFood.y*CELL+CELL/2+1);
+      }
+
+      // Magnet field around head
+      if (activeEffects.magnet > now && snake.length > 0) {
+        const pct = (activeEffects.magnet - now) / MAGNET_MS;
+        const hx = snake[0].x*CELL+CELL/2, hy = snake[0].y*CELL+CELL/2;
+        const r = CELL * 2.2 + CELL * 0.3 * Math.sin(now/120);
+        ctx.beginPath(); ctx.arc(hx, hy, r, 0, Math.PI*2);
+        ctx.strokeStyle = `rgba(74,207,255,${pct * 0.65})`; ctx.lineWidth = 2; ctx.stroke();
+        ctx.fillStyle = `rgba(74,207,255,${pct * 0.55})`;
+        for (let i = 0; i < 4; i++) {
+          const phase = ((now/600 + i*0.25) % 1);
+          const angle = now/350 + i * Math.PI/2;
+          const dist  = r * (1 - phase);
+          ctx.beginPath(); ctx.arc(hx + Math.cos(angle)*dist, hy + Math.sin(angle)*dist, 2.5, 0, Math.PI*2); ctx.fill();
+        }
+      }
+
+      // Snake
+      snake.forEach((seg, i) => {
+        const t = i / snake.length;
+        const g = Math.round(180 + (1-t)*75);
+        ctx.fillStyle = i===0 ? '#4ecca3' : `rgb(30,${g},120)`;
+        const pad = i===0 ? 1 : 2;
+        ctx.beginPath(); ctx.roundRect(seg.x*CELL+pad, seg.y*CELL+pad, CELL-pad*2, CELL-pad*2, 4); ctx.fill();
+        if (i===0) {
+          ctx.fillStyle = '#0f0f1a';
+          const ecx = seg.x*CELL+CELL/2+dir.y*4, ecy = seg.y*CELL+CELL/2+dir.x*4;
+          ctx.beginPath(); ctx.arc(ecx+dir.x*3-dir.y*3, ecy+dir.y*3-dir.x*3, 2, 0, Math.PI*2); ctx.fill();
+          ctx.beginPath(); ctx.arc(ecx+dir.x*3+dir.y*3, ecy+dir.y*3+dir.x*3, 2, 0, Math.PI*2); ctx.fill();
+        }
+      });
+
+      // Floating texts
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      floatingTexts.forEach(ft => {
+        const a = ft.life / ft.maxLife;
+        const yOff = (1-a) * 38;
+        ctx.globalAlpha = a;
+        ctx.font = `bold ${ft.size}px 'Segoe UI', sans-serif`;
+        ctx.fillStyle = '#000'; ctx.fillText(ft.text, ft.x+1, ft.y-yOff+1);
+        ctx.fillStyle = ft.color; ctx.fillText(ft.text, ft.x, ft.y-yOff);
+      });
+      ctx.globalAlpha = 1;
+
+      // HUD: combo counter
+      const ts = now - lastEatTime;
+      if (comboCount >= 2 && ts < COMBO_WINDOW + 600) {
+        const a = ts > COMBO_WINDOW ? 1-(ts-COMBO_WINDOW)/600 : 1;
+        ctx.globalAlpha = a; ctx.font = 'bold 15px Segoe UI';
+        ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+        ctx.fillStyle = '#000'; ctx.fillText(`COMBO ×${comboCount}`, canvas.width-7, 12);
+        ctx.fillStyle = '#ffd700'; ctx.fillText(`COMBO ×${comboCount}`, canvas.width-8, 11);
+        ctx.globalAlpha = 1;
+      }
+
+      // HUD: slowdown indicator
+      if (activeEffects.slowdown > now) {
+        const pct = (activeEffects.slowdown - now) / SLOWDOWN_MS;
+        ctx.globalAlpha = Math.min(1, pct * 2);
+        ctx.font = 'bold 12px Segoe UI'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+        ctx.fillStyle = '#000'; ctx.fillText('SLOW TIME', 9, 13);
+        ctx.fillStyle = '#aa88ff'; ctx.fillText('SLOW TIME', 8, 12);
+        ctx.globalAlpha = 1;
+      }
+
+      // HUD: magnet indicator
+      if (activeEffects.magnet > now) {
+        const pct = (activeEffects.magnet - now) / MAGNET_MS;
+        ctx.globalAlpha = Math.min(1, pct * 2);
+        const yPos = activeEffects.slowdown > now ? 28 : 12;
+        ctx.font = 'bold 12px Segoe UI'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+        ctx.fillStyle = '#000'; ctx.fillText('MAGNET', 9, yPos+1);
+        ctx.fillStyle = '#4acfff'; ctx.fillText('MAGNET', 8, yPos);
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    // ── Draw helpers ──────────────────────────────────────────────────────
+    function drawDot(gx, gy, color) {
+      const cx = gx*CELL+CELL/2, cy = gy*CELL+CELL/2;
+      ctx.beginPath(); ctx.arc(cx, cy, CELL/2-2, 0, Math.PI*2); ctx.fillStyle = color; ctx.fill();
+      ctx.beginPath(); ctx.arc(cx-3, cy-3, 3, 0, Math.PI*2); ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fill();
+    }
+
+    function drawGolden(s, now) {
+      const cx = s.x*CELL+CELL/2, cy = s.y*CELL+CELL/2;
+      const r = (CELL/2-2) * (0.85 + 0.15*Math.sin(now/180));
+      ctx.beginPath(); ctx.arc(cx, cy, r+5, 0, Math.PI*2); ctx.fillStyle = 'rgba(255,215,0,0.1)'; ctx.fill();
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fillStyle = '#ffd700'; ctx.fill();
+      ctx.beginPath(); ctx.arc(cx-2, cy-2, 3, 0, Math.PI*2); ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,180,0.85)';
+      for (let a = 0; a < 4; a++) {
+        const ang = a*Math.PI/2 + now/900;
+        ctx.beginPath(); ctx.arc(cx+Math.cos(ang)*(r+4), cy+Math.sin(ang)*(r+4), 1.5, 0, Math.PI*2); ctx.fill();
+      }
+    }
+
+    function drawDecaying(s, now) {
+      const pct = Math.max(0, (s.expiresAt-now)/s.duration);
+      const cx = s.x*CELL+CELL/2, cy = s.y*CELL+CELL/2;
+      const r = (CELL/2-2) * (0.75 + 0.25*Math.sin(now/(80+220*pct)));
+      const rr = Math.round(230*pct+90*(1-pct)), gg = Math.round(130*pct+90*(1-pct)), bb = Math.round(20*pct+90*(1-pct));
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fillStyle = `rgb(${rr},${gg},${bb})`; ctx.fill();
+      ctx.beginPath(); ctx.arc(cx-2, cy-2, 2.5, 0, Math.PI*2); ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fill();
+      ctx.beginPath(); ctx.arc(cx, cy, CELL/2-1, -Math.PI/2, -Math.PI/2+pct*Math.PI*2);
+      ctx.strokeStyle = `rgba(255,${Math.round(180*pct)},0,${0.4+0.6*pct})`; ctx.lineWidth = 2; ctx.stroke();
+    }
+
+    function drawPortalCell(pos, color, now) {
+      const cx = pos.x*CELL+CELL/2, cy = pos.y*CELL+CELL/2, r = CELL/2-1;
+      const spin = now/380;
+      // Glow
+      ctx.beginPath(); ctx.arc(cx, cy, r+5, 0, Math.PI*2); ctx.fillStyle = color+'28'; ctx.fill();
+      // Dark center
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fillStyle = '#08081a'; ctx.fill();
+      // Spinning arcs
+      ctx.strokeStyle = color; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(cx, cy, r, spin, spin+Math.PI*1.4); ctx.stroke();
+      ctx.strokeStyle = color+'66'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(cx, cy, r-3, spin+Math.PI, spin+Math.PI*2.4); ctx.stroke();
+      // Center dot
+      ctx.beginPath(); ctx.arc(cx, cy, 2.5, 0, Math.PI*2); ctx.fillStyle = color; ctx.fill();
+    }
+
+    function drawPowerupPickup(p, now) {
+      const cx = p.x*CELL+CELL/2, cy = p.y*CELL+CELL/2;
+      const pulse = 0.85 + 0.15*Math.sin(now/260);
+      const r = (CELL/2-2) * pulse;
+      const isMag = p.type === 'magnet';
+      const border = isMag ? '#4acfff' : '#aa88ff';
+      const bg     = isMag ? '#071a22' : '#100a22';
+      // Glow
+      ctx.beginPath(); ctx.arc(cx, cy, r+5, 0, Math.PI*2); ctx.fillStyle = border+'22'; ctx.fill();
+      // Body
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fillStyle = bg; ctx.fill();
+      ctx.strokeStyle = border; ctx.lineWidth = 1.5; ctx.stroke();
+      // Icon letter
+      ctx.font = `bold ${CELL-6}px Segoe UI`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = border;
+      ctx.fillText(isMag ? 'M' : 'S', cx, cy+1);
+    }
+
+    // ── Overlays ──────────────────────────────────────────────────────────
+    function showOverlay(title, color, sub, btnText, hint) {
+      overlay.innerHTML = ''; overlay.style.display = 'flex';
+      const b = el('button', { textContent: btnText });
+      b.addEventListener('click', handleBtn);
+      overlay.append(el('h2', { style:`color:${color}`, textContent:title }),
+                     el('p',  { className:'sub', textContent:sub }));
+      if (hint) overlay.append(el('p', { className:'hint', textContent:hint }));
+      overlay.append(b);
+    }
+
+    function showStartScreen() {
+      const lb = loadLB();
+      overlay.innerHTML = ''; overlay.style.display = 'flex';
+      overlay.append(
+        el('h2', { style:'color:#4ecca3', textContent:'SNAKE' }),
+        el('p',  { className:'sub', textContent:'Arrow Keys or WASD to move' })
+      );
+      const key = el('div', { className:'item-key' });
+      key.innerHTML = `
+        <span style="color:#e94560">● +1pt</span>
+        <span style="color:#ffd700">● +5pt timed</span>
+        <span style="color:#f39c12">● +2pt decays</span>
+        <span style="color:#e94560">♥ extra life</span>
+        <span style="color:#4acfff">M magnet</span>
+        <span style="color:#aa88ff">S slow time</span>
+        <span style="color:#88aaff">⬤⬤ portal pair</span>`;
+      overlay.append(key);
+      const lbWrap = el('div', { className:'lb-wrap' });
+      lbWrap.innerHTML = '<p class="lb-title">LEADERBOARD</p>' + buildLBTable(lb, -1);
+      overlay.append(lbWrap);
+      const b = el('button', { textContent:'START' });
+      b.addEventListener('click', handleBtn);
+      overlay.append(el('p', { className:'hint', textContent:'Eat quickly to build a COMBO multiplier!' }), b);
+    }
+
+    function showNameEntry() {
+      overlay.innerHTML = ''; overlay.style.display = 'flex';
+      overlay.append(
+        el('h2', { style:'color:#ffd700', textContent:'NEW HIGH SCORE!' }),
+        el('p',  { className:'sub', textContent:`Score: ${score}  •  Level: ${level}` }),
+        el('p',  { className:'sub', textContent:'Enter your 3-letter initials:' })
+      );
+      const inp = document.createElement('input');
+      inp.id = 'name-input'; inp.type = 'text'; inp.maxLength = 3;
+      inp.autocomplete = 'off'; inp.setAttribute('spellcheck','false');
+      inp.addEventListener('input', () => { inp.value = inp.value.toUpperCase().replace(/[^A-Z0-9]/g,''); });
+      overlay.append(inp);
+      const b = el('button', { textContent:'SAVE  ►' });
+      b.addEventListener('click', submitName);
+      overlay.append(b);
+      setTimeout(() => inp.focus(), 50);
+    }
+
+    function showGameOverScreen(lb, hi) {
+      overlay.innerHTML = ''; overlay.style.display = 'flex';
+      overlay.append(
+        el('h2', { style:'color:#e94560', textContent:'GAME OVER' }),
+        el('p',  { className:'sub', textContent:`Score: ${score}  •  Level: ${level}` })
+      );
+      const lbWrap = el('div', { className:'lb-wrap' });
+      lbWrap.innerHTML = '<p class="lb-title">LEADERBOARD</p>' + buildLBTable(lb, hi);
+      overlay.append(lbWrap);
+      const b = el('button', { textContent:'PLAY AGAIN' });
+      b.addEventListener('click', handleBtn);
+      overlay.append(b, el('p', { className:'hint', textContent:'Press Enter or click to restart' }));
+    }
+
+    function submitName() {
+      const inp = document.getElementById('name-input');
+      const name = (inp ? inp.value : '').padEnd(3,'?').slice(0,3);
+      const { lb, rank } = recordScore(name, score, level);
+      state = 'gameover'; showGameOverScreen(lb, rank);
+    }
+
+    function handleBtn() {
+      overlay.style.display = 'none';
+      if (state === 'gameover' || state === 'start') { initGame(); }
+      else { initLevel(); }
+      draw(); running = true; state = 'playing';
+      gameLoop = setInterval(step, stepMs(level));
+    }
+
+    // ── Input ─────────────────────────────────────────────────────────────
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && state !== 'playing') {
+        e.preventDefault();
+        if (state === 'nameentry') submitName(); else handleBtn();
+        return;
+      }
+      if (state === 'nameentry') return;
+      const map = {
+        ArrowUp:{x:0,y:-1},   w:{x:0,y:-1},  W:{x:0,y:-1},
+        ArrowDown:{x:0,y:1},  s:{x:0,y:1},   S:{x:0,y:1},
+        ArrowLeft:{x:-1,y:0}, a:{x:-1,y:0},  A:{x:-1,y:0},
+        ArrowRight:{x:1,y:0}, d:{x:1,y:0},   D:{x:1,y:0},
+      };
+      const nd = map[e.key];
+      if (!nd || !running) return;
+      if (nd.x === -dir.x && nd.y === -dir.y) return;
+      nextDir = nd;
+      if (e.key.startsWith('Arrow')) e.preventDefault();
+    });
+
+    // Boot
+    initGame(); draw(); state = 'start'; showStartScreen();
+  </script>
+</body>
+</html>

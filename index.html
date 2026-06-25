@@ -587,18 +587,20 @@
 
     const TOP = 5;
 
-    // Fetch all scores, sort client-side — guaranteed correct top 5 regardless of index
+    // Fetch all scores, sort client-side. Fall back to localStorage if Firebase empty.
     db.ref('arcade/snake').on('value',
       snap => {
-        const rows = snapAll(snap).sort((a,b) => b.score - a.score).slice(0, TOP);
+        let rows = snapAll(snap).sort((a,b) => b.score - a.score).slice(0, TOP);
+        if (!rows.length) rows = readLocalLB('snakeLB').slice(0, TOP);
         setPanel('panel-snake', rows, false);
-      }, () => setPanel('panel-snake', [], false));
+      }, () => setPanel('panel-snake', readLocalLB('snakeLB').slice(0, TOP), false));
 
     db.ref('arcade/space_defenders').on('value',
       snap => {
-        const rows = snapAll(snap).sort((a,b) => b.score - a.score).slice(0, TOP);
+        let rows = snapAll(snap).sort((a,b) => b.score - a.score).slice(0, TOP);
+        if (!rows.length) rows = readLocalLB('sdLB').slice(0, TOP);
         setPanel('panel-space', rows, false);
-      }, () => setPanel('panel-space', [], false));
+      }, () => setPanel('panel-space', readLocalLB('sdLB').slice(0, TOP), false));
 
     db.ref('arcade/minesweeper').on('value',
       snap => {
@@ -608,9 +610,10 @@
 
     db.ref('arcade/flappy_bird').on('value',
       snap => {
-        const rows = snapAll(snap).sort((a,b) => b.score - a.score).slice(0, TOP);
+        let rows = snapAll(snap).sort((a,b) => b.score - a.score).slice(0, TOP);
+        if (!rows.length) rows = readLocalLB('flappyLeaderboard_v1').slice(0, TOP);
         setPanel('panel-flappy', rows, true);
-      }, () => setPanel('panel-flappy', [], true));
+      }, () => setPanel('panel-flappy', readLocalLB('flappyLeaderboard_v1').slice(0, TOP), true));
 
     db.ref('arcade/kitten_cannon').on('value',
       snap => {

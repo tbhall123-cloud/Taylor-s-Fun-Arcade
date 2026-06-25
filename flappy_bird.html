@@ -207,9 +207,17 @@ function addScore(name, sc, ch) {
   renderLB(top, sc);
   // Push to Firebase and refresh
   if (window.arcadeDB) {
+    console.log('[Flappy] Pushing score to Firebase:', cleanName, sc, ch);
     window.arcadeDB.ref('arcade/flappy_bird').push({
       name:cleanName, score:sc, char:ch, charEmoji:CHAR_EMOJI[ch]||'', ts:Date.now()
-    }).then(()=>fetchOnlineLB(sc)).catch(()=>{});
+    }).then(()=>{
+      console.log('[Flappy] Score saved to Firebase ✓');
+      fetchOnlineLB(sc);
+    }).catch(err=>{
+      console.error('[Flappy] Firebase write failed:', err.message);
+    });
+  } else {
+    console.warn('[Flappy] arcadeDB not available — score saved locally only');
   }
 }
 function fetchOnlineLB(highlightScore) {

@@ -450,6 +450,10 @@
         <div class="lb-panel-title"><span class="lb-dot" style="background:#e94560"></span>SPACE DEFENDERS</div>
         <p class="lb-empty">Loading...</p>
       </div>
+      <div class="lb-panel" id="panel-minesweeper">
+        <div class="lb-panel-title"><span class="lb-dot" style="background:#c0c000"></span>MINESWEEPER</div>
+        <p class="lb-empty">Loading...</p>
+      </div>
       <div class="lb-panel" id="panel-flappy">
         <div class="lb-panel-title"><span class="lb-dot" style="background:#ffd700"></span>FLAPPY BIRD</div>
         <p class="lb-empty">Loading...</p>
@@ -468,20 +472,21 @@
     try { return JSON.parse(localStorage.getItem(key)||'[]'); } catch { return []; }
   }
 
-  function buildScoreTable(rows, hasChar) {
+  function buildScoreTable(rows, type) {
     if (!rows.length) return '<p class="lb-empty">No scores yet — be the first!</p>';
-    const cols = hasChar
-      ? `<tr><th>#</th><th>NAME</th><th>CHAR</th><th>SCORE</th></tr>`
-      : `<tr><th>#</th><th>NAME</th><th>SCORE</th><th>LVL</th></tr>`;
+    let cols, rowFn;
+    if (type === true) {
+      cols = `<tr><th>#</th><th>NAME</th><th>CHAR</th><th>SCORE</th></tr>`;
+      rowFn = (e,r) => `<tr><td>${r}</td><td>${e.name}</td><td>${CHAR_EMOJI[e.char]||''}</td><td>${e.score}</td></tr>`;
+    } else if (type === 'time') {
+      cols = `<tr><th>#</th><th>NAME</th><th>DIFF</th><th>TIME</th></tr>`;
+      rowFn = (e,r) => `<tr><td>${r}</td><td>${e.name}</td><td>${(e.difficulty||'').slice(0,3).toUpperCase()}</td><td>${e.time}s</td></tr>`;
+    } else {
+      cols = `<tr><th>#</th><th>NAME</th><th>SCORE</th><th>LVL</th></tr>`;
+      rowFn = (e,r) => `<tr><td>${r}</td><td>${e.name}</td><td>${e.score}</td><td>${e.level||'-'}</td></tr>`;
+    }
     let h = `<table class="lb-table"><thead>${cols}</thead><tbody>`;
-    rows.forEach((e,i) => {
-      const rank = medals[i] || `#${i+1}`;
-      if (hasChar) {
-        h += `<tr><td>${rank}</td><td>${e.name}</td><td>${CHAR_EMOJI[e.char]||''}</td><td>${e.score}</td></tr>`;
-      } else {
-        h += `<tr><td>${rank}</td><td>${e.name}</td><td>${e.score}</td><td>${e.level||'-'}</td></tr>`;
-      }
-    });
+    rows.forEach((e,i) => { h += rowFn(e, medals[i]||`#${i+1}`); });
     return h + '</tbody></table>';
   }
 
@@ -493,15 +498,23 @@
 
   function showOffline() {
     document.getElementById('lb-status').textContent = '(local only — Firebase not configured)';
-    setPanel('panel-snake',  readLocalLB('snakeLB').slice(0,5),           false);
-    setPanel('panel-space',  readLocalLB('sdLB').slice(0,5),              false);
-    setPanel('panel-flappy', readLocalLB('flappyLeaderboard_v1').slice(0,5), true);
+    setPanel('panel-snake',       readLocalLB('snakeLB').slice(0,5),              false);
+    setPanel('panel-space',       readLocalLB('sdLB').slice(0,5),                 false);
+    setPanel('panel-minesweeper', [],                                              'time');
+    setPanel('panel-flappy',      readLocalLB('flappyLeaderboard_v1').slice(0,5), true);
   }
 
   function snapToRows(snap, limit) {
     if (!snap || !snap.exists()) return [];
     const rows = [];
-    snap.forEach(c => rows.unshift(c.val()));
+    snap.forEach(c => rows.unshift(c.val())); // unshift = highest score first
+    return rows.slice(0, limit);
+  }
+
+  function snapToRowsAsc(snap, limit) {
+    if (!snap || !snap.exists()) return [];
+    const rows = [];
+    snap.forEach(c => rows.push(c.val())); // push = lowest time first
     return rows.slice(0, limit);
   }
 
@@ -521,6 +534,11 @@
       .on('value',
         snap => setPanel('panel-space', snapToRows(snap, TOP), false),
         ()   => setPanel('panel-space', [], false));
+
+    db.ref('arcade/minesweeper').orderByChild('time').limitToFirst(TOP)
+      .on('value',
+        snap => setPanel('panel-minesweeper', snapToRowsAsc(snap, TOP), 'time'),
+        ()   => setPanel('panel-minesweeper', [], 'time'));
 
     db.ref('arcade/flappy_bird').orderByChild('score').limitToLast(TOP)
       .on('value',

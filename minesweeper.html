@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Minesweeper</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -135,9 +138,48 @@
     margin-top: 6px;
     font-weight: bold;
   }
+  #name-row {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+  }
+  #name-row input {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    width: 90px;
+    padding: 2px 4px;
+    border: 2px inset #808080;
+    background: #fff;
+    text-transform: uppercase;
+  }
+  #name-row button {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    padding: 2px 8px;
+    cursor: pointer;
+    background: #c0c0c0;
+    border: 2px solid;
+    border-color: #fff #808080 #808080 #fff;
+  }
+  #name-row button:active { border-color: #808080 #fff #fff #808080; }
+  #home-btn {
+    position: fixed; top: 14px; right: 16px;
+    font-size: 0.7rem; letter-spacing: 2px; font-weight: 700;
+    color: #555; text-decoration: none; text-transform: uppercase;
+    padding: 5px 10px; border: 1px solid #808080; border-radius: 4px;
+    transition: color 0.15s, border-color 0.15s;
+    background: rgba(192,192,192,0.85); font-family: 'Courier New', monospace;
+  }
+  #home-btn:hover { color: #007b00; border-color: #007b00; }
 </style>
 </head>
 <body>
+
+<a id="home-btn" href="index.html">← ARCADE</a>
 
 <div id="difficulty">
   <button class="diff-btn active" data-rows="9"  data-cols="9"  data-mines="10">Beginner</button>
@@ -153,6 +195,10 @@
   </div>
   <div id="board"></div>
   <div id="status-msg"></div>
+  <div id="name-row">
+    NAME: <input id="name-input" type="text" maxlength="10" placeholder="PLAYER">
+    <button id="save-btn">SAVE SCORE</button>
+  </div>
 </div>
 
 <script>
@@ -167,6 +213,33 @@ let grid, revealed, flagged, questioned;
 let gameState; // 'idle' | 'playing' | 'won' | 'lost'
 let timerInterval, seconds, firstClick;
 let flagCount;
+let currentDiff = 'Beginner';
+
+const nameRow   = document.getElementById('name-row');
+const nameInput = document.getElementById('name-input');
+const saveBtn   = document.getElementById('save-btn');
+
+nameInput.value = localStorage.getItem('arcadeName') || '';
+saveBtn.addEventListener('click', submitScore);
+nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') submitScore(); });
+
+function showNameEntry() {
+  nameRow.style.display = 'flex';
+  nameInput.focus();
+}
+function submitScore() {
+  const name = (nameInput.value || 'Player').trim().toUpperCase() || 'PLAYER';
+  localStorage.setItem('arcadeName', name);
+  nameRow.style.display = 'none';
+  statusMsg.textContent = `You win! Time: ${seconds}s — saved!`;
+  if (window.arcadeDB) {
+    console.log('[Minesweeper] Pushing score:', name, seconds, currentDiff);
+    window.arcadeDB.ref('arcade/minesweeper').push({
+      name, time: seconds, difficulty: currentDiff, ts: Date.now()
+    }).then(()=>console.log('[Minesweeper] Score saved ✓'))
+      .catch(err=>console.error('[Minesweeper] Firebase write failed:', err.message));
+  }
+}
 
 function fmt(n) {
   const v = Math.min(Math.max(n, -99), 999);
@@ -349,6 +422,7 @@ function onLeftClick(e) {
     clearInterval(timerInterval);
     resetBtn.textContent = '😎';
     statusMsg.textContent = `You win! Time: ${seconds}s`;
+    showNameEntry();
     // Auto-flag remaining mines
     for (let rr = 0; rr < ROWS; rr++)
       for (let cc = 0; cc < COLS; cc++)
@@ -420,6 +494,7 @@ function chord(r, c) {
     clearInterval(timerInterval);
     resetBtn.textContent = '😎';
     statusMsg.textContent = `You win! Time: ${seconds}s`;
+    showNameEntry();
     for (let rr = 0; rr < ROWS; rr++)
       for (let cc = 0; cc < COLS; cc++)
         if (grid[rr][cc] === -1) flagged[rr][cc] = true;
@@ -430,12 +505,14 @@ function chord(r, c) {
   updateCells();
 }
 
-resetBtn.addEventListener('click', () => initGame(ROWS, COLS, MINES));
+resetBtn.addEventListener('click', () => { nameRow.style.display='none'; initGame(ROWS, COLS, MINES); });
 
 document.querySelectorAll('.diff-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
+    currentDiff = btn.textContent;
+    nameRow.style.display = 'none';
     initGame(+btn.dataset.rows, +btn.dataset.cols, +btn.dataset.mines);
   });
 });

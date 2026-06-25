@@ -134,7 +134,12 @@ function recordScore(name, s, lvl) {
   const rank = lb.findIndex(e => e.name===entry.name && e.score===s && e.level===lvl);
   saveLB(lb);
   if (window.arcadeDB) {
-    window.arcadeDB.ref('arcade/space_defenders').push({ name:entry.name, score:s, level:lvl, ts:Date.now() }).catch(()=>{});
+    console.log('[Space] Pushing score to Firebase:', entry.name, s, lvl);
+    window.arcadeDB.ref('arcade/space_defenders').push({ name:entry.name, score:s, level:lvl, ts:Date.now() })
+      .then(()=>console.log('[Space] Score saved to Firebase ✓'))
+      .catch(err=>console.error('[Space] Firebase write failed:', err.message));
+  } else {
+    console.warn('[Space] arcadeDB not available — score saved locally only');
   }
   return { lb, rank };
 }

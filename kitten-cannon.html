@@ -679,6 +679,8 @@ function reset() {
   window._kcShowScoreEntry = function(dist) {
     scoreEntry.style.display = 'block';
     nameInput.value = '';
+    saveBtn.textContent = 'SAVE SCORE';
+    saveBtn.disabled = false;
     nameInput.focus();
   };
 

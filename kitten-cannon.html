@@ -3,52 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <title>Kitten Cannon!</title>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-<script src="firebase-config.js"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { width: 100%; height: 100%; overflow: hidden; background: #000; cursor: crosshair; }
 canvas { display: block; }
-
-#home-btn {
-  position: fixed; top: 14px; left: 16px; z-index: 100;
-  color: #ff9966; font-family: monospace; font-size: 0.85rem;
-  font-weight: 700; letter-spacing: 2px; text-decoration: none;
-  background: rgba(0,0,0,0.65); padding: 6px 14px; border-radius: 6px;
-  border: 1px solid #ff9966;
-}
-#home-btn:hover { background: #ff9966; color: #000; }
-
-#score-entry {
-  display: none;
-  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-  background: rgba(0,0,0,0.88); border: 1px solid #ff9966;
-  border-radius: 10px; padding: 14px 22px;
-  font-family: monospace; color: #ff9966; font-size: 1rem;
-  letter-spacing: 1px; text-align: center; z-index: 100;
-  white-space: nowrap;
-}
-#score-entry input {
-  font-family: monospace; font-size: 1rem; background: #111;
-  color: #fff; border: 1px solid #ff9966; border-radius: 4px;
-  padding: 4px 8px; width: 110px; text-transform: uppercase; margin: 0 8px;
-}
-#score-entry button {
-  font-family: monospace; font-size: 0.85rem; font-weight: 700;
-  background: #ff9966; color: #000; border: none; border-radius: 4px;
-  padding: 5px 14px; cursor: pointer; letter-spacing: 1px;
-}
-#score-entry button:hover { background: #ffbb88; }
 </style>
 </head>
 <body>
-<a id="home-btn" href="index.html">← ARCADE</a>
 <canvas id="c"></canvas>
-<div id="score-entry">
-  NAME: <input id="kc-name" type="text" maxlength="10" placeholder="PLAYER">
-  <button id="kc-save">SAVE SCORE</button>
-</div>
 <script>
 const c = document.getElementById('c');
 const ctx = c.getContext('2d');
@@ -629,7 +591,7 @@ function update() {
             case 'spring':
                 if(ky>oGY-size.h-28){kvy=-Math.max(30,Math.abs(kvy)*2.2);ky=oGY-size.h-28;o.hitTimer=25;pop(o.wx,oGY-70,'SPROING! 🌀','#4488ff');}break;
             case 'cactus':
-                if(ky>oGY-size.h-22){kvx*=0.35;kvy=-4;ky=oGY-size.h-22;o.hitTimer=25;pop(o.wx,oGY-70,'POKE! 🌵','#88cc44');}break;
+                if(ky>oGY-size.h-22){kvx=Math.max(kvx*0.35,4);kvy=-7;ky=oGY-size.h-22;o.hitTimer=60;pop(o.wx,oGY-70,'POKE! 🌵','#88cc44');}break;
             case 'cloud':
                 if(Math.abs(kx-o.wx)<size.hw&&Math.abs(ky-o.wy)<size.h+10&&o.hitTimer<=0){cloudTimer=getCloudMs();o.hitTimer=40;pop(o.wx,o.wy-40,'☁️ FLOAT!','#ccddff');}break;
         }
@@ -653,7 +615,6 @@ function doStop() {
     }
     totalCoins+=coins;
     if(finalDist>bestFt)bestFt=finalDist;
-    if(!spiked && finalDist>0) setTimeout(()=>window._kcShowScoreEntry&&window._kcShowScoreEntry(finalDist),200);
 }
 
 function fire(pSw, aSw) {
@@ -676,46 +637,7 @@ function reset() {
     power=0; powerDir=1; angleOsc=0.5; angleDir=1;
     cannonAngle=ANGLE_MIN+(ANGLE_MAX-ANGLE_MIN)*0.5;
     state='ready'; pops=[]; buildWorld();
-    document.getElementById('score-entry').style.display = 'none';
 }
-
-// ── LEADERBOARD ────────────────────────────────────────────
-(function() {
-  const scoreEntry = document.getElementById('score-entry');
-  const nameInput  = document.getElementById('kc-name');
-  const saveBtn    = document.getElementById('kc-save');
-
-  window._kcShowScoreEntry = function(dist) {
-    scoreEntry.style.display = 'block';
-    nameInput.value = '';
-    saveBtn.textContent = 'SAVE SCORE';
-    saveBtn.disabled = false;
-    nameInput.focus();
-  };
-
-  saveBtn.addEventListener('click', function() {
-    if (spiked) return; // don't save impaled shots
-    const rawName = nameInput.value.trim().toUpperCase() || 'PLAYER';
-    const dist = Math.floor(finalDist);
-    saveBtn.textContent = 'SAVING...';
-    saveBtn.disabled = true;
-    if (window.arcadeDB) {
-      console.log('[KittenCannon] Pushing score to Firebase:', rawName, dist);
-      window.arcadeDB.ref('arcade/kitten_cannon').push({
-        name: rawName, dist: dist, ts: Date.now()
-      }).then(() => {
-        console.log('[KittenCannon] Score saved to Firebase ✓');
-        saveBtn.textContent = 'SAVED ✓';
-      }).catch(err => {
-        console.error('[KittenCannon] Firebase write failed:', err.message);
-        saveBtn.textContent = 'ERROR';
-      });
-    } else {
-      console.warn('[KittenCannon] arcadeDB not available');
-      saveBtn.textContent = 'SAVED ✓';
-    }
-  });
-})();
 
 // ── INPUT ──────────────────────────────────────────────────
 c.addEventListener('mousedown', e => {

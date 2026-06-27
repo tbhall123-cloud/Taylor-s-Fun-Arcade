@@ -150,6 +150,23 @@ function buildLBTable(lb, hi) {
   return h + '</tbody></table>';
 }
 
+function fetchAndRenderLB(lbWrap) {
+  if (!window.arcadeDB || !lbWrap) return;
+  window.arcadeDB.ref('arcade/space_defenders').once('value').then(snap => {
+    const fb = [];
+    if (snap && snap.exists()) snap.forEach(c => fb.push(c.val()));
+    const seen = new Set();
+    const merged = [...fb, ...loadLB()].filter(e => {
+      const k = (e.name||'')+'|'+(e.score||0);
+      if (seen.has(k)) return false;
+      seen.add(k); return true;
+    }).sort((a,b) => b.score - a.score).slice(0, 5);
+    if (lbWrap.isConnected) {
+      lbWrap.innerHTML = '<p class="lb-title">LEADERBOARD</p>' + buildLBTable(merged, -1);
+    }
+  }).catch(() => {});
+}
+
 function el(tag, props) { const e = document.createElement(tag); Object.assign(e, props); return e; }
 
 // ── Stars ─────────────────────────────────────────────────────────────────────
@@ -752,6 +769,7 @@ function showStartScreen() {
   const lbWrap = el('div', { className:'lb-wrap' });
   lbWrap.innerHTML = '<p class="lb-title">LEADERBOARD</p>' + buildLBTable(lb, -1);
   overlay.append(lbWrap);
+  fetchAndRenderLB(lbWrap);
   const b = el('button', { textContent:'START' });
   b.addEventListener('click', handleBtn);
   overlay.append(b, el('p', { className:'hint', textContent:'Press Enter or click to start' }));
@@ -821,6 +839,7 @@ function showGameOver(lb, hi) {
   const lbWrap = el('div', { className:'lb-wrap' });
   lbWrap.innerHTML = '<p class="lb-title">LEADERBOARD</p>' + buildLBTable(lb, hi);
   overlay.append(lbWrap, b, el('p', { className:'hint', textContent:'Press Enter to restart' }));
+  fetchAndRenderLB(lbWrap);
 }
 
 function handleBtn() {

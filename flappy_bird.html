@@ -222,11 +222,17 @@ function addScore(name, sc, ch) {
 }
 function fetchOnlineLB(highlightScore) {
   if (!window.arcadeDB) return;
-  window.arcadeDB.ref('arcade/flappy_bird').orderByChild('score').limitToLast(LB_MAX)
-    .once('value').then(snap=>{
-      const rows=[]; snap.forEach(c=>rows.unshift({...c.val()}));
-      renderLB(rows, highlightScore);
-    }).catch(()=>{});
+  window.arcadeDB.ref('arcade/flappy_bird').once('value').then(snap => {
+    const fb = [];
+    if (snap && snap.exists()) snap.forEach(c => fb.push(c.val()));
+    const seen = new Set();
+    const merged = [...fb, ...loadLB()].filter(e => {
+      const k = (e.name||'')+'|'+(e.score||0);
+      if (seen.has(k)) return false;
+      seen.add(k); return true;
+    }).sort((a,b) => b.score - a.score).slice(0, LB_MAX);
+    renderLB(merged, highlightScore);
+  }).catch(() => {});
 }
 function renderLB(data, highlightScore) {
   const lb = Array.isArray(data) ? data : loadLB();

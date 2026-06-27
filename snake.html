@@ -155,7 +155,9 @@
         if (lbWrap.isConnected) {
           lbWrap.innerHTML = '<p class="lb-title">LEADERBOARD</p>' + buildLBTable(merged, -1);
         }
-      }).catch(() => {});
+      }).catch(err => {
+        console.warn('[Snake] Firebase read failed:', err.message || err);
+      });
     }
 
     // ── State ─────────────────────────────────────────────────────────────

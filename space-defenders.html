@@ -164,7 +164,9 @@ function fetchAndRenderLB(lbWrap) {
     if (lbWrap.isConnected) {
       lbWrap.innerHTML = '<p class="lb-title">LEADERBOARD</p>' + buildLBTable(merged, -1);
     }
-  }).catch(() => {});
+  }).catch(err => {
+    console.warn('[Space] Firebase read failed:', err.message || err);
+  });
 }
 
 function el(tag, props) { const e = document.createElement(tag); Object.assign(e, props); return e; }

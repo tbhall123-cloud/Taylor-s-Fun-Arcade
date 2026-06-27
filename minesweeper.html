@@ -286,7 +286,8 @@ function fetchAndRenderLB() {
       h += `<tr><td>${medals[i]||'#'+(i+1)}</td><td>${e.name}</td><td>${(e.difficulty||'').slice(0,3).toUpperCase()}</td><td>${e.time}s</td></tr>`;
     });
     el.innerHTML = h + '</tbody></table>';
-  }).catch(() => {
+  }).catch(err => {
+    console.warn('[Minesweeper] Firebase read failed:', err.message || err);
     el.innerHTML = '<p class="lb-empty">Could not load leaderboard</p>';
   });
 }

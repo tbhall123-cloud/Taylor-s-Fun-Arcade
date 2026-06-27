@@ -570,7 +570,7 @@
     setPanel('panel-space',       readLocalLB('sdLB').slice(0,5),                 false);
     setPanel('panel-minesweeper', [],                                              'time');
     setPanel('panel-flappy',      readLocalLB('flappyLeaderboard_v1').slice(0,5), true);
-    setPanel('panel-kitten',      [],                                               'dist');
+    setPanel('panel-kitten',      readLocalLB('kittenCannonLB').slice(0,5),       'dist');
   }
 
   function snapAll(snap) {
@@ -602,37 +602,42 @@
     setPanel('panel-snake',  readLocalLB('snakeLB').sort((a,b)=>b.score-a.score).slice(0,5), false);
     setPanel('panel-space',  readLocalLB('sdLB').sort((a,b)=>b.score-a.score).slice(0,5), false);
     setPanel('panel-flappy', readLocalLB('flappyLeaderboard_v1').sort((a,b)=>b.score-a.score).slice(0,5), true);
+    setPanel('panel-kitten', readLocalLB('kittenCannonLB').sort((a,b)=>b.dist-a.dist).slice(0,5), 'dist');
 
     // Firebase listeners — merge with localStorage and overwrite panels when data arrives
+    let fbErrorShown = false;
+    function onFbError(label, err) {
+      console.warn('[Main] ' + label + ' error:', err.message || err);
+      if (!fbErrorShown) {
+        fbErrorShown = true;
+        document.getElementById('lb-status').textContent = '⚠️ Firebase error — showing local scores';
+      }
+    }
+
     db.ref('arcade/snake').on('value', snap => {
       const fb = snapAll(snap);
-      console.log('[Main] snake Firebase rows:', fb.length);
       setPanel('panel-snake', mergeDesc(fb, readLocalLB('snakeLB'), 'score'), false);
-    }, err => console.warn('[Main] snake error:', err));
+    }, err => { onFbError('snake', err); setPanel('panel-snake', readLocalLB('snakeLB').sort((a,b)=>b.score-a.score).slice(0,5), false); });
 
     db.ref('arcade/space_defenders').on('value', snap => {
       const fb = snapAll(snap);
-      console.log('[Main] space_defenders Firebase rows:', fb.length);
       setPanel('panel-space', mergeDesc(fb, readLocalLB('sdLB'), 'score'), false);
-    }, err => console.warn('[Main] space_defenders error:', err));
+    }, err => { onFbError('space', err); setPanel('panel-space', readLocalLB('sdLB').sort((a,b)=>b.score-a.score).slice(0,5), false); });
 
     db.ref('arcade/minesweeper').on('value', snap => {
       const fb = snapAll(snap);
-      console.log('[Main] minesweeper Firebase rows:', fb.length);
       setPanel('panel-minesweeper', fb.sort((a,b) => a.time - b.time).slice(0, 5), 'time');
-    }, err => { console.warn('[Main] minesweeper error:', err); setPanel('panel-minesweeper', [], 'time'); });
+    }, err => { onFbError('minesweeper', err); setPanel('panel-minesweeper', [], 'time'); });
 
     db.ref('arcade/flappy_bird').on('value', snap => {
       const fb = snapAll(snap);
-      console.log('[Main] flappy_bird Firebase rows:', fb.length, fb);
       setPanel('panel-flappy', mergeDesc(fb, readLocalLB('flappyLeaderboard_v1'), 'score'), true);
-    }, err => console.warn('[Main] flappy_bird error:', err));
+    }, err => { onFbError('flappy', err); setPanel('panel-flappy', readLocalLB('flappyLeaderboard_v1').sort((a,b)=>b.score-a.score).slice(0,5), true); });
 
     db.ref('arcade/kitten_cannon').on('value', snap => {
       const fb = snapAll(snap);
-      console.log('[Main] kitten_cannon Firebase rows:', fb.length);
       setPanel('panel-kitten', fb.sort((a,b) => b.dist - a.dist).slice(0, 5), 'dist');
-    }, err => { console.warn('[Main] kitten_cannon error:', err); setPanel('panel-kitten', [], 'dist'); });
+    }, err => { onFbError('kitten', err); setPanel('panel-kitten', readLocalLB('kittenCannonLB').sort((a,b)=>b.dist-a.dist).slice(0,5), 'dist'); });
   }
 
   loadOnline();

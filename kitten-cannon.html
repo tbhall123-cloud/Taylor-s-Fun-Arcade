@@ -160,7 +160,7 @@ function submitScore(name, dist) {
     if(window.arcadeDB) {
         window.arcadeDB.ref('arcade/kitten_cannon').push(entry)
             .then(() => fetchOnlineLB())
-            .catch(()=>{});
+            .catch(err => console.warn('[Kitten] Firebase write failed:', err.message || err));
     }
     return lb.findIndex(e=>e.name===entry.name&&e.dist===entry.dist);
 }
@@ -177,7 +177,7 @@ function fetchOnlineLB() {
             if (seen.has(k)) return false;
             seen.add(k); return true;
         }).sort((a,b) => b.dist - a.dist).slice(0, 5);
-    }).catch(()=>{});
+    }).catch(err => console.warn('[Kitten] Firebase read failed:', err.message || err));
 }
 fetchOnlineLB();
 

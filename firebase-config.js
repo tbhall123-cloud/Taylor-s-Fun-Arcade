@@ -32,6 +32,59 @@ const firebaseConfig = {
       if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
       window.arcadeDB = firebase.database();
       console.log('[Arcade] Firebase connected ✓');
+
+      // Test whether the database rules allow reads.
+      // Firebase test-mode rules expire after 30 days; when they do, every
+      // read/write silently fails with PERMISSION_DENIED.
+      window.arcadeDB.ref('arcade').limitToFirst(1).once('value')
+        .then(() => {
+          window.arcadeRulesOk = true;
+          console.log('[Arcade] Firebase rules OK ✓');
+        })
+        .catch(err => {
+          window.arcadeRulesOk = false;
+          if (err.code === 'PERMISSION_DENIED') {
+            console.error(
+              '[Arcade] 🚫 Firebase rules are blocking reads/writes!\n' +
+              '  Scores will NOT sync across devices until you fix this.\n' +
+              '  Fix: Firebase Console → Realtime Database → Rules\n' +
+              '  Set both ".read" and ".write" to true (open rules) or add\n' +
+              '  expiry-free rules.\n' +
+              '  Direct link: https://console.firebase.google.com/project/' +
+              firebaseConfig.projectId + '/database/' +
+              firebaseConfig.projectId + '-default-rtdb/rules'
+            );
+            // Show a dismissible banner on the page so it's hard to miss.
+            const showBanner = () => {
+              if (document.getElementById('arcade-rules-banner')) return;
+              const b = document.createElement('div');
+              b.id = 'arcade-rules-banner';
+              b.style.cssText =
+                'position:fixed;top:0;left:0;right:0;z-index:99999;' +
+                'background:#c0392b;color:#fff;padding:10px 16px;' +
+                'font:14px/1.4 system-ui,sans-serif;text-align:center;';
+              b.innerHTML =
+                '⚠️ Firebase rules have expired — leaderboards won\'t sync across devices. ' +
+                '<a href="https://console.firebase.google.com/project/' +
+                firebaseConfig.projectId + '/database/' +
+                firebaseConfig.projectId + '-default-rtdb/rules" ' +
+                'target="_blank" style="color:#ffd700;font-weight:bold;">' +
+                'Fix in Firebase Console →</a>' +
+                '&nbsp;&nbsp;<button onclick="this.parentNode.remove()" ' +
+                'style="background:none;border:1px solid rgba(255,255,255,0.5);' +
+                'color:#fff;cursor:pointer;padding:2px 8px;border-radius:3px;">' +
+                '✕</button>';
+              if (document.body) document.body.prepend(b);
+              else document.addEventListener('DOMContentLoaded', () => document.body.prepend(b));
+            };
+            if (document.readyState === 'loading') {
+              document.addEventListener('DOMContentLoaded', showBanner);
+            } else {
+              showBanner();
+            }
+          }
+        });
+
     } catch (e) {
       window.arcadeDB = null;
       console.warn('[Arcade] Firebase init failed:', e.message);

@@ -232,7 +232,9 @@ function fetchOnlineLB(highlightScore) {
       seen.add(k); return true;
     }).sort((a,b) => b.score - a.score).slice(0, LB_MAX);
     renderLB(merged, highlightScore);
-  }).catch(() => {});
+  }).catch(err => {
+    console.warn('[Flappy] Firebase read failed:', err.message || err);
+  });
 }
 function renderLB(data, highlightScore) {
   const lb = Array.isArray(data) ? data : loadLB();

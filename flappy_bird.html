@@ -197,15 +197,18 @@ const CHAR_EMOJI = { bird:'🐦', bull:'🐂', lion:'🦁', bear:'🐻' };
 
 function loadLB() { try { return JSON.parse(localStorage.getItem(LB_KEY)) || []; } catch { return []; } }
 function saveLB(lb) { localStorage.setItem(LB_KEY, JSON.stringify(lb)); }
+// Track the most recently submitted entry so stale Firebase reads can't erase it.
+let _lbSeq = 0;
+let _lastSubmitted = null;
+
 function addScore(name, sc, ch) {
   const cleanName = (name||'Player').trim().toUpperCase()||'PLAYER';
-  // Save locally
   const lb = loadLB();
   lb.push({ name:cleanName, score:sc, char:ch });
   lb.sort((a,b)=>b.score-a.score);
   const top = lb.slice(0,LB_MAX); saveLB(top);
+  _lastSubmitted = { name:cleanName, score:sc, char:ch }; // always kept in merged
   renderLB(top, sc);
-  // Push to Firebase and refresh
   if (window.arcadeDB) {
     console.log('[Flappy] Pushing score to Firebase:', cleanName, sc, ch);
     window.arcadeDB.ref('arcade/flappy_bird').push({
@@ -221,12 +224,18 @@ function addScore(name, sc, ch) {
   }
 }
 function fetchOnlineLB(highlightScore) {
-  if (!window.arcadeDB) return;
+  // Sequence counter: if a newer read starts before this one finishes, discard this result.
+  const seq = ++_lbSeq;
+  if (!window.arcadeDB) { renderLB(loadLB(), highlightScore); return; }
   window.arcadeDB.ref('arcade/flappy_bird').once('value').then(snap => {
+    if (seq !== _lbSeq) return; // stale — a newer fetchOnlineLB was called after this one started
     const fb = [];
     if (snap && snap.exists()) snap.forEach(c => fb.push(c.val()));
     const seen = new Set();
-    const merged = [...fb, ...loadLB()].filter(e => {
+    // Prepend the last submitted entry so it always appears even if Firebase data
+    // from this read predates the push (race condition).
+    const extra = _lastSubmitted ? [_lastSubmitted] : [];
+    const merged = [...extra, ...fb, ...loadLB()].filter(e => {
       const k = (e.name||'')+'|'+(e.score||0);
       if (seen.has(k)) return false;
       seen.add(k); return true;

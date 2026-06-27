@@ -148,9 +148,29 @@ function submitScore(name, dist) {
     const entry = { name: name.toUpperCase().padEnd(3,'?').slice(0,3), dist: Math.floor(dist), ts: Date.now() };
     const lb = loadLocalLB();
     lb.push(entry); lb.sort((a,b)=>b.dist-a.dist); lb.splice(10); saveLocalLB(lb);
-    if(window.arcadeDB) window.arcadeDB.ref('arcade/kitten_cannon').push(entry).catch(()=>{});
+    if(window.arcadeDB) {
+        window.arcadeDB.ref('arcade/kitten_cannon').push(entry)
+            .then(() => fetchOnlineLB())
+            .catch(()=>{});
+    }
     return lb.findIndex(e=>e.name===entry.name&&e.dist===entry.dist);
 }
+
+let onlineLB = loadLocalLB().slice(0,5); // starts with local, updates from Firebase
+function fetchOnlineLB() {
+    if (!window.arcadeDB) return;
+    window.arcadeDB.ref('arcade/kitten_cannon').once('value').then(snap => {
+        const fb = [];
+        if (snap && snap.exists()) snap.forEach(c => fb.push(c.val()));
+        const seen = new Set();
+        onlineLB = [...fb, ...loadLocalLB()].filter(e => {
+            const k = (e.name||'')+'|'+(e.dist||0);
+            if (seen.has(k)) return false;
+            seen.add(k); return true;
+        }).sort((a,b) => b.dist - a.dist).slice(0, 5);
+    }).catch(()=>{});
+}
+fetchOnlineLB();
 
 function showNameEntry() {
     const ov = document.getElementById('name-overlay');
@@ -618,7 +638,7 @@ function drawShop() {
     const lbY = by2 + bh + 14;
     ctx.font='bold 13px Impact'; ctx.textAlign='center'; ctx.strokeStyle='#000'; ctx.lineWidth=3;
     ctx.strokeText('🏆 LEADERBOARD',c.width/2,lbY+14); ctx.fillStyle='#ffd700'; ctx.fillText('🏆 LEADERBOARD',c.width/2,lbY+14);
-    const lb = loadLocalLB().slice(0,5);
+    const lb = onlineLB;
     if(!lb.length){
         ctx.font='12px Impact'; ctx.fillStyle='#888'; ctx.lineWidth=0;
         ctx.fillText('No scores yet — be the first!',c.width/2,lbY+34);
@@ -730,6 +750,7 @@ function doStop() {
     const isRecord = finalDist > bestFt;
     if(isRecord){ bestFt=finalDist; snd.newRecord(); }
     kittenSX=1; kittenSY=1;
+    fetchOnlineLB();
     if(finalDist>0&&!spiked&&isTopScore(Math.floor(finalDist))){
         showNameEntry();
     }

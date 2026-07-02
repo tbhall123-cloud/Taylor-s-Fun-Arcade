@@ -249,7 +249,7 @@ function showNameEntry() {
   nameInput.focus();
 }
 function submitScore() {
-  const name = (nameInput.value || 'Player').trim().toUpperCase() || 'PLAYER';
+  const name = arcadeCleanName(nameInput.value);
   localStorage.setItem('arcadeName', name);
   nameRow.style.display = 'none';
   statusMsg.textContent = `You win! Time: ${seconds}s — saved!`;
@@ -283,7 +283,7 @@ function fetchAndRenderLB() {
     }
     let h = '<p class="lb-title">🏆 LEADERBOARD</p><table><thead><tr><th>#</th><th>NAME</th><th>DIFF</th><th>TIME</th></tr></thead><tbody>';
     top.forEach((e,i) => {
-      h += `<tr><td>${medals[i]||'#'+(i+1)}</td><td>${e.name}</td><td>${(e.difficulty||'').slice(0,3).toUpperCase()}</td><td>${e.time}s</td></tr>`;
+      h += `<tr><td>${medals[i]||'#'+(i+1)}</td><td>${arcadeEsc(e.name)}</td><td>${arcadeEsc((e.difficulty||'').slice(0,3).toUpperCase())}</td><td>${arcadeNum(e.time)}s</td></tr>`;
     });
     el.innerHTML = h + '</tbody></table>';
   }).catch(err => {

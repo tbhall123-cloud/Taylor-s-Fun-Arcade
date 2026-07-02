@@ -154,7 +154,7 @@ function loadLocalLB() { try { return JSON.parse(localStorage.getItem('kittenCan
 function saveLocalLB(lb) { localStorage.setItem('kittenCannonLB', JSON.stringify(lb)); }
 function isTopScore(dist) { const lb=loadLocalLB(); return lb.length<10||dist>lb[lb.length-1].dist; }
 function submitScore(name, dist) {
-    const entry = { name: name.toUpperCase().padEnd(3,'?').slice(0,3), dist: Math.floor(dist), ts: Date.now() };
+    const entry = { name: arcadeCleanName(name).padEnd(3,'?').slice(0,3), dist: Math.floor(dist), ts: Date.now() };
     const lb = loadLocalLB();
     lb.push(entry); lb.sort((a,b)=>b.dist-a.dist); lb.splice(10); saveLocalLB(lb);
     if(window.arcadeDB) {

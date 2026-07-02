@@ -202,7 +202,7 @@ let _lbSeq = 0;
 let _lastSubmitted = null;
 
 function addScore(name, sc, ch) {
-  const cleanName = (name||'Player').trim().toUpperCase()||'PLAYER';
+  const cleanName = arcadeCleanName(name);
   const lb = loadLB();
   lb.push({ name:cleanName, score:sc, char:ch });
   lb.sort((a,b)=>b.score-a.score);
@@ -253,9 +253,9 @@ function renderLB(data, highlightScore) {
     const isNew=highlightScore!==undefined&&e.score===highlightScore&&firstHit&&(firstHit=false,true);
     return `<div class="lb-row${isNew?' lb-new':''}">
       <span class="lb-rank">${medals[i]||'#'+(i+1)}</span>
-      <span class="lb-name">${e.name}</span>
+      <span class="lb-name">${arcadeEsc(e.name)}</span>
       <span class="lb-char">${CHAR_EMOJI[e.char]||''}</span>
-      <span class="lb-score">${e.score}</span>
+      <span class="lb-score">${arcadeNum(e.score)}</span>
     </div>`;
   }).join('');
 }

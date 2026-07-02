@@ -129,7 +129,7 @@ function saveLB(lb) { localStorage.setItem('sdLB', JSON.stringify(lb)); }
 function isTopTen(s) { const lb = loadLB(); return lb.length < 10 || s > lb[lb.length-1].score; }
 function recordScore(name, s, lvl) {
   const lb = loadLB();
-  const entry = { name: name.toUpperCase().padEnd(3,'?').slice(0,3), score: s, level: lvl };
+  const entry = { name: arcadeCleanName(name).padEnd(3,'?').slice(0,3), score: s, level: lvl };
   lb.push(entry); lb.sort((a,b) => b.score - a.score); lb.splice(10);
   const rank = lb.findIndex(e => e.name===entry.name && e.score===s && e.level===lvl);
   saveLB(lb);
@@ -146,7 +146,7 @@ function recordScore(name, s, lvl) {
 function buildLBTable(lb, hi) {
   if (!lb.length) return '<p class="lb-empty">No scores yet!</p>';
   let h = '<table class="lb-table"><thead><tr><th>#</th><th>NAME</th><th>SCORE</th><th>LVL</th></tr></thead><tbody>';
-  lb.forEach((e,i) => { h += `<tr${i===hi?' class="lb-new"':''}><td>${i+1}</td><td>${e.name}</td><td>${e.score}</td><td>${e.level}</td></tr>`; });
+  lb.forEach((e,i) => { h += `<tr${i===hi?' class="lb-new"':''}><td>${i+1}</td><td>${arcadeEsc(e.name)}</td><td>${arcadeNum(e.score)}</td><td>${arcadeNum(e.level)}</td></tr>`; });
   return h + '</tbody></table>';
 }
 

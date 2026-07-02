@@ -539,19 +539,20 @@
 
   function buildScoreTable(rows, type) {
     if (!rows.length) return '<p class="lb-empty">No scores yet — be the first!</p>';
+    const esc = window.arcadeEsc, num = window.arcadeNum;
     let cols, rowFn;
     if (type === true) {
       cols = `<tr><th>#</th><th>NAME</th><th>CHAR</th><th>SCORE</th></tr>`;
-      rowFn = (e,r) => `<tr><td>${r}</td><td>${e.name}</td><td>${CHAR_EMOJI[e.char]||''}</td><td>${e.score}</td></tr>`;
+      rowFn = (e,r) => `<tr><td>${r}</td><td>${esc(e.name)}</td><td>${CHAR_EMOJI[e.char]||''}</td><td>${num(e.score)}</td></tr>`;
     } else if (type === 'time') {
       cols = `<tr><th>#</th><th>NAME</th><th>DIFF</th><th>TIME</th></tr>`;
-      rowFn = (e,r) => `<tr><td>${r}</td><td>${e.name}</td><td>${(e.difficulty||'').slice(0,3).toUpperCase()}</td><td>${e.time}s</td></tr>`;
+      rowFn = (e,r) => `<tr><td>${r}</td><td>${esc(e.name)}</td><td>${esc((e.difficulty||'').slice(0,3).toUpperCase())}</td><td>${num(e.time)}s</td></tr>`;
     } else if (type === 'dist') {
       cols = `<tr><th>#</th><th>NAME</th><th>DIST</th></tr>`;
-      rowFn = (e,r) => `<tr><td>${r}</td><td>${e.name}</td><td>${e.dist} ft</td></tr>`;
+      rowFn = (e,r) => `<tr><td>${r}</td><td>${esc(e.name)}</td><td>${num(e.dist)} ft</td></tr>`;
     } else {
       cols = `<tr><th>#</th><th>NAME</th><th>SCORE</th><th>LVL</th></tr>`;
-      rowFn = (e,r) => `<tr><td>${r}</td><td>${e.name}</td><td>${e.score}</td><td>${e.level||'-'}</td></tr>`;
+      rowFn = (e,r) => `<tr><td>${r}</td><td>${esc(e.name)}</td><td>${num(e.score)}</td><td>${e.level ? num(e.level) : '-'}</td></tr>`;
     }
     let h = `<table class="lb-table"><thead>${cols}</thead><tbody>`;
     rows.forEach((e,i) => { h += rowFn(e, medals[i]||`#${i+1}`); });

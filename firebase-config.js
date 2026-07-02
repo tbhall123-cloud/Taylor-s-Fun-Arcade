@@ -24,6 +24,26 @@ const firebaseConfig = {
 };
 
 // Don't touch below this line ─────────────────────────────────────
+
+// Security helpers shared by every page.
+// Leaderboard entries come from a shared database that anyone can write to,
+// so every value must be escaped before being placed into HTML.
+window.arcadeEsc = function (v) {
+  return String(v == null ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+};
+// Numbers from the database may be strings or garbage — coerce safely.
+window.arcadeNum = function (v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+// Clean a player name before saving: letters/digits/basic punctuation, max 12 chars.
+window.arcadeCleanName = function (v) {
+  return String(v == null ? '' : v)
+    .replace(/[^\w \-_.!?]/g, '').trim().slice(0, 12).toUpperCase() || 'PLAYER';
+};
+
 (function () {
   const ready = !firebaseConfig.apiKey.startsWith('PASTE') &&
                 !firebaseConfig.databaseURL.includes('PASTE_PROJECT_ID');
@@ -68,7 +88,7 @@ const firebaseConfig = {
                 '<a href="https://console.firebase.google.com/project/' +
                 firebaseConfig.projectId + '/database/' +
                 firebaseConfig.projectId + '-default-rtdb/rules" ' +
-                'target="_blank" style="color:#ffd700;font-weight:bold;">' +
+                'target="_blank" rel="noopener noreferrer" style="color:#ffd700;font-weight:bold;">' +
                 'Fix in Firebase Console →</a>' +
                 '&nbsp;&nbsp;<button onclick="this.parentNode.remove()" ' +
                 'style="background:none;border:1px solid rgba(255,255,255,0.5);' +

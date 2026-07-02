@@ -1,0 +1,64 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "arcade": {
+      ".read": true,
+      "snake": {
+        "$entry": {
+          ".write": "!data.exists() && newData.exists()",
+          ".validate": "newData.hasChildren(['name', 'score', 'ts'])",
+          "name":  { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 12" },
+          "score": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000" },
+          "level": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000" },
+          "ts":    { ".validate": "newData.isNumber() && newData.val() <= now + 60000" },
+          "$other": { ".validate": false }
+        }
+      },
+      "space_defenders": {
+        "$entry": {
+          ".write": "!data.exists() && newData.exists()",
+          ".validate": "newData.hasChildren(['name', 'score', 'ts'])",
+          "name":  { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 12" },
+          "score": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000" },
+          "level": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000" },
+          "ts":    { ".validate": "newData.isNumber() && newData.val() <= now + 60000" },
+          "$other": { ".validate": false }
+        }
+      },
+      "flappy_bird": {
+        "$entry": {
+          ".write": "!data.exists() && newData.exists()",
+          ".validate": "newData.hasChildren(['name', 'score', 'ts'])",
+          "name":      { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 12" },
+          "score":     { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000" },
+          "char":      { ".validate": "newData.isString() && newData.val().length <= 10" },
+          "charEmoji": { ".validate": "newData.isString() && newData.val().length <= 8" },
+          "ts":        { ".validate": "newData.isNumber() && newData.val() <= now + 60000" },
+          "$other": { ".validate": false }
+        }
+      },
+      "minesweeper": {
+        "$entry": {
+          ".write": "!data.exists() && newData.exists()",
+          ".validate": "newData.hasChildren(['name', 'time', 'ts'])",
+          "name":       { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 12" },
+          "time":       { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 100000" },
+          "difficulty": { ".validate": "newData.isString() && newData.val().length <= 16" },
+          "ts":         { ".validate": "newData.isNumber() && newData.val() <= now + 60000" },
+          "$other": { ".validate": false }
+        }
+      },
+      "kitten_cannon": {
+        "$entry": {
+          ".write": "!data.exists() && newData.exists()",
+          ".validate": "newData.hasChildren(['name', 'dist', 'ts'])",
+          "name": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 12" },
+          "dist": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000" },
+          "ts":   { ".validate": "newData.isNumber() && newData.val() <= now + 60000" },
+          "$other": { ".validate": false }
+        }
+      }
+    }
+  }
+}

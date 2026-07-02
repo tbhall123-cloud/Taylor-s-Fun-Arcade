@@ -577,7 +577,7 @@
   function snapAll(snap) {
     if (!snap || !snap.exists()) return [];
     const rows = [];
-    snap.forEach(c => rows.push(c.val()));
+    snap.forEach(c => { rows.push(c.val()); }); // braces matter: push() returns a truthy length, which tells Firebase's forEach to stop iterating
     return rows;
   }
 

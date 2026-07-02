@@ -145,7 +145,7 @@
       if (!window.arcadeDB || !lbWrap) return;
       window.arcadeDB.ref('arcade/snake').once('value').then(snap => {
         const fb = [];
-        if (snap && snap.exists()) snap.forEach(c => fb.push(c.val()));
+        if (snap && snap.exists()) snap.forEach(c => { fb.push(c.val()); }); // braces matter: truthy return stops Firebase forEach
         const seen = new Set();
         const merged = [...fb, ...loadLB()].filter(e => {
           const k = (e.name||'')+'|'+(e.score||0);

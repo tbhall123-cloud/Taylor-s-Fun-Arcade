@@ -273,7 +273,7 @@ function fetchAndRenderLB() {
   }
   window.arcadeDB.ref('arcade/minesweeper').once('value').then(snap => {
     const rows = [];
-    if (snap && snap.exists()) snap.forEach(c => rows.push(c.val()));
+    if (snap && snap.exists()) snap.forEach(c => { rows.push(c.val()); }); // braces matter: truthy return stops Firebase forEach
     rows.sort((a,b) => a.time - b.time);
     const top = rows.slice(0, 5);
     const medals = ['🥇','🥈','🥉'];

@@ -170,7 +170,7 @@ function fetchOnlineLB() {
     if (!window.arcadeDB) return;
     window.arcadeDB.ref('arcade/kitten_cannon').once('value').then(snap => {
         const fb = [];
-        if (snap && snap.exists()) snap.forEach(c => fb.push(c.val()));
+        if (snap && snap.exists()) snap.forEach(c => { fb.push(c.val()); }); // braces matter: truthy return stops Firebase forEach
         const seen = new Set();
         onlineLB = [...fb, ...loadLocalLB()].filter(e => {
             const k = (e.name||'')+'|'+(e.dist||0);

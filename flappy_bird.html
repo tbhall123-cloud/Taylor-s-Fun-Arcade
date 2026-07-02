@@ -230,7 +230,7 @@ function fetchOnlineLB(highlightScore) {
   window.arcadeDB.ref('arcade/flappy_bird').once('value').then(snap => {
     if (seq !== _lbSeq) return; // stale — a newer fetchOnlineLB was called after this one started
     const fb = [];
-    if (snap && snap.exists()) snap.forEach(c => fb.push(c.val()));
+    if (snap && snap.exists()) snap.forEach(c => { fb.push(c.val()); }); // braces matter: truthy return stops Firebase forEach
     const seen = new Set();
     // Prepend the last submitted entry so it always appears even if Firebase data
     // from this read predates the push (race condition).

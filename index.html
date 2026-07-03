@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Taylor's Arcade</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕹️</text></svg>">
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <script src="firebase-config.js"></script>
@@ -559,10 +560,10 @@
     return h + '</tbody></table>';
   }
 
-  function setPanel(id, rows, hasChar) {
+  function setPanel(id, rows, hasChar, extra) {
     const panel = document.getElementById(id);
     const title = panel.querySelector('.lb-panel-title').outerHTML;
-    panel.innerHTML = title + buildScoreTable(rows, hasChar);
+    panel.innerHTML = title + buildScoreTable(rows, hasChar) + (extra || '');
   }
 
   function showOffline() {
@@ -581,7 +582,8 @@
     return rows;
   }
 
-  // Merge Firebase + localStorage, deduplicate by name+score, sort, take top N
+  // Merge Firebase + localStorage, deduplicate by name+score, sort descending.
+  // Returns the FULL ranked list — callers slice for display.
   function mergeDesc(firebaseRows, localRows, key) {
     const seen = new Set();
     return [...firebaseRows, ...localRows]
@@ -590,8 +592,18 @@
         if (seen.has(k)) return false;
         seen.add(k); return true;
       })
-      .sort((a,b) => b[key] - a[key])
-      .slice(0, 5);
+      .sort((a,b) => b[key] - a[key]);
+  }
+
+  // If this device's best score didn't make the top 5, pin it below with its true rank
+  function yourBestHTML(all, localRows, key) {
+    if (!localRows.length) return '';
+    const best = localRows.reduce((a,b) => window.arcadeNum(b[key]) > window.arcadeNum(a[key]) ? b : a);
+    const id = (best.name||'') + '|' + (best[key]||0);
+    const rank = all.findIndex(e => ((e.name||'') + '|' + (e[key]||0)) === id);
+    if (rank < 5) return '';
+    const unit = key === 'dist' ? ' ft' : '';
+    return `<p class="lb-you">YOUR BEST&nbsp;&nbsp;#${rank+1} · ${window.arcadeEsc(best.name)} · ${window.arcadeNum(best[key])}${unit}</p>`;
   }
 
   function loadOnline() {
@@ -617,12 +629,16 @@
 
     db.ref('arcade/snake').on('value', snap => {
       const fb = snapAll(snap);
-      setPanel('panel-snake', mergeDesc(fb, readLocalLB('snakeLB'), 'score'), false);
+      const local = readLocalLB('snakeLB');
+      const all = mergeDesc(fb, local, 'score');
+      setPanel('panel-snake', all.slice(0,5), false, yourBestHTML(all, local, 'score'));
     }, err => { onFbError('snake', err); setPanel('panel-snake', readLocalLB('snakeLB').sort((a,b)=>b.score-a.score).slice(0,5), false); });
 
     db.ref('arcade/space_defenders').on('value', snap => {
       const fb = snapAll(snap);
-      setPanel('panel-space', mergeDesc(fb, readLocalLB('sdLB'), 'score'), false);
+      const local = readLocalLB('sdLB');
+      const all = mergeDesc(fb, local, 'score');
+      setPanel('panel-space', all.slice(0,5), false, yourBestHTML(all, local, 'score'));
     }, err => { onFbError('space', err); setPanel('panel-space', readLocalLB('sdLB').sort((a,b)=>b.score-a.score).slice(0,5), false); });
 
     db.ref('arcade/minesweeper').on('value', snap => {
@@ -632,12 +648,16 @@
 
     db.ref('arcade/flappy_bird').on('value', snap => {
       const fb = snapAll(snap);
-      setPanel('panel-flappy', mergeDesc(fb, readLocalLB('flappyLeaderboard_v1'), 'score'), true);
+      const local = readLocalLB('flappyLeaderboard_v1');
+      const all = mergeDesc(fb, local, 'score');
+      setPanel('panel-flappy', all.slice(0,5), true, yourBestHTML(all, local, 'score'));
     }, err => { onFbError('flappy', err); setPanel('panel-flappy', readLocalLB('flappyLeaderboard_v1').sort((a,b)=>b.score-a.score).slice(0,5), true); });
 
     db.ref('arcade/kitten_cannon').on('value', snap => {
       const fb = snapAll(snap);
-      setPanel('panel-kitten', fb.sort((a,b) => b.dist - a.dist).slice(0, 5), 'dist');
+      const local = readLocalLB('kittenCannonLB');
+      const all = mergeDesc(fb, local, 'dist');
+      setPanel('panel-kitten', all.slice(0,5), 'dist', yourBestHTML(all, local, 'dist'));
     }, err => { onFbError('kitten', err); setPanel('panel-kitten', readLocalLB('kittenCannonLB').sort((a,b)=>b.dist-a.dist).slice(0,5), 'dist'); });
   }
 
@@ -726,6 +746,15 @@
     font-size: 0.8rem;
     text-align: center;
     padding: 12px 0;
+  }
+
+  .lb-you {
+    margin-top: 10px;
+    padding: 6px 10px 0;
+    border-top: 1px dashed rgba(255,255,255,0.15);
+    font-size: 0.72rem;
+    letter-spacing: 1px;
+    color: #7fd4ff;
   }
 </style>
 </html>

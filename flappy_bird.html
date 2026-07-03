@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Flappy!</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐦</text></svg>">
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <script src="firebase-config.js"></script>
@@ -54,6 +55,8 @@
     .lb-row.lb-new    { color: #7fff7f; }
     .lb-row.lb-new .lb-rank, .lb-row.lb-new .lb-score { color: #7fff7f; }
     .lb-empty { color: #888; font-size: 12px; text-align: center; padding: 4px 0; }
+    .lb-row.lb-you { margin-top: 5px; padding-top: 5px; border-top: 1px dashed rgba(255,255,255,0.25); }
+    .lb-row.lb-you .lb-rank, .lb-row.lb-you .lb-name, .lb-row.lb-you .lb-score { color: #7fd4ff; }
     #nameRow { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; pointer-events: auto; }
     #nameRow label { color: #ccc; font-size: 11px; font-weight: 700; letter-spacing: 1px; }
     #nameInput {
@@ -235,17 +238,32 @@ function fetchOnlineLB(highlightScore) {
     // Prepend the last submitted entry so it always appears even if Firebase data
     // from this read predates the push (race condition).
     const extra = _lastSubmitted ? [_lastSubmitted] : [];
-    const merged = [...extra, ...fb, ...loadLB()].filter(e => {
+    const all = [...extra, ...fb, ...loadLB()].filter(e => {
       const k = (e.name||'')+'|'+(e.score||0);
       if (seen.has(k)) return false;
       seen.add(k); return true;
-    }).sort((a,b) => b.score - a.score).slice(0, LB_MAX);
-    renderLB(merged, highlightScore);
+    }).sort((a,b) => b.score - a.score);
+    renderLB(all.slice(0, LB_MAX), highlightScore, yourBestRow(all));
   }).catch(err => {
     console.warn('[Flappy] Firebase read failed:', err.message || err);
   });
 }
-function renderLB(data, highlightScore) {
+// If this device's best score didn't make the top 5, pin it below with its true rank
+function yourBestRow(all) {
+  const local = loadLB();
+  if (!local.length) return '';
+  const best = local.reduce((a,b) => b.score > a.score ? b : a);
+  const id = (best.name||'')+'|'+(best.score||0);
+  const rank = all.findIndex(e => (e.name||'')+'|'+(e.score||0) === id);
+  if (rank < LB_MAX) return '';
+  return `<div class="lb-row lb-you">
+    <span class="lb-rank">#${rank+1}</span>
+    <span class="lb-name">${arcadeEsc(best.name)}</span>
+    <span class="lb-char">${CHAR_EMOJI[best.char]||''}</span>
+    <span class="lb-score">${arcadeNum(best.score)}</span>
+  </div>`;
+}
+function renderLB(data, highlightScore, youHTML) {
   const lb = Array.isArray(data) ? data : loadLB();
   if (!lb.length) { lbRows.innerHTML = '<div class="lb-empty">No scores yet — be the first!</div>'; return; }
   const medals=['🥇','🥈','🥉']; let firstHit=true;
@@ -257,7 +275,7 @@ function renderLB(data, highlightScore) {
       <span class="lb-char">${CHAR_EMOJI[e.char]||''}</span>
       <span class="lb-score">${arcadeNum(e.score)}</span>
     </div>`;
-  }).join('');
+  }).join('') + (youHTML || '');
 }
 
 // ═══════════════════════════════════════════

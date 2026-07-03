@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Space Defenders</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👾</text></svg>">
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <script src="firebase-config.js"></script>
@@ -46,6 +47,7 @@
     .lb-table tbody tr:nth-child(odd) td { background: rgba(255,255,255,0.02); }
     .lb-new td { color: #ffd700 !important; font-weight: bold; }
     .lb-empty { color: #444; font-size: 0.8rem; text-align: center; padding: 8px 0; }
+    .lb-you { margin-top: 8px; padding: 6px 10px 0; border-top: 1px dashed rgba(255,255,255,0.15); font-size: 0.72rem; letter-spacing: 1px; color: #7fd4ff; text-align: center; }
     #name-input {
       background: #0a0a1a; border: 2px solid #4ecca3; border-radius: 4px;
       color: #fff; font-size: 2rem; letter-spacing: 14px; text-align: center;
@@ -150,6 +152,17 @@ function buildLBTable(lb, hi) {
   return h + '</tbody></table>';
 }
 
+// If this device's best score didn't make the top 5, pin it below with its true rank
+function yourBestRow(all) {
+  const local = loadLB();
+  if (!local.length) return '';
+  const best = local.reduce((a,b) => b.score > a.score ? b : a);
+  const id = (best.name||'')+'|'+(best.score||0);
+  const rank = all.findIndex(e => (e.name||'')+'|'+(e.score||0) === id);
+  if (rank < 5) return '';
+  return `<p class="lb-you">YOUR BEST&nbsp;&nbsp;#${rank+1} · ${arcadeEsc(best.name)} · ${arcadeNum(best.score)}</p>`;
+}
+
 function fetchAndRenderLB(lbWrap) {
   if (!window.arcadeDB || !lbWrap) return;
   window.arcadeDB.ref('arcade/space_defenders').once('value').then(snap => {
@@ -160,9 +173,9 @@ function fetchAndRenderLB(lbWrap) {
       const k = (e.name||'')+'|'+(e.score||0);
       if (seen.has(k)) return false;
       seen.add(k); return true;
-    }).sort((a,b) => b.score - a.score).slice(0, 5);
+    }).sort((a,b) => b.score - a.score);
     if (lbWrap.isConnected) {
-      lbWrap.innerHTML = '<p class="lb-title">LEADERBOARD</p>' + buildLBTable(merged, -1);
+      lbWrap.innerHTML = '<p class="lb-title">LEADERBOARD</p>' + buildLBTable(merged.slice(0, 5), -1) + yourBestRow(merged);
     }
   }).catch(err => {
     console.warn('[Space] Firebase read failed:', err.message || err);

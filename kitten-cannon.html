@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Kitten Cannon!</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐱</text></svg>">
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="firebase-config.js"></script>
@@ -166,18 +167,31 @@ function submitScore(name, dist) {
 }
 
 let onlineLB = loadLocalLB().slice(0,5); // starts with local, updates from Firebase
+let onlineLBAll = loadLocalLB();          // full ranked list, for "your best" rank
 function fetchOnlineLB() {
     if (!window.arcadeDB) return;
     window.arcadeDB.ref('arcade/kitten_cannon').once('value').then(snap => {
         const fb = [];
         if (snap && snap.exists()) snap.forEach(c => { fb.push(c.val()); }); // braces matter: truthy return stops Firebase forEach
         const seen = new Set();
-        onlineLB = [...fb, ...loadLocalLB()].filter(e => {
+        onlineLBAll = [...fb, ...loadLocalLB()].filter(e => {
             const k = (e.name||'')+'|'+(e.dist||0);
             if (seen.has(k)) return false;
             seen.add(k); return true;
-        }).sort((a,b) => b.dist - a.dist).slice(0, 5);
+        }).sort((a,b) => b.dist - a.dist);
+        onlineLB = onlineLBAll.slice(0, 5);
     }).catch(err => console.warn('[Kitten] Firebase read failed:', err.message || err));
+}
+
+// If this device's best distance didn't make the top 5, return {rank, entry} to pin below
+function yourBestLine() {
+    const local = loadLocalLB();
+    if (!local.length) return null;
+    const best = local.reduce((a,b) => b.dist > a.dist ? b : a);
+    const id = (best.name||'')+'|'+(best.dist||0);
+    const rank = onlineLBAll.findIndex(e => (e.name||'')+'|'+(e.dist||0) === id);
+    if (rank < 5) return null;
+    return { rank: rank + 1, entry: best };
 }
 fetchOnlineLB();
 
@@ -662,6 +676,14 @@ function drawShop() {
             ctx.strokeText(`${medal}  ${e.name}  ${e.dist} ft`,c.width/2,ey);
             ctx.fillText(`${medal}  ${e.name}  ${e.dist} ft`,c.width/2,ey);
         });
+        const you = yourBestLine();
+        if (you) {
+            const ey = lbY + 34 + lb.length*20 + 6;
+            ctx.font='12px Impact'; ctx.fillStyle='#7fd4ff'; ctx.lineWidth=2;
+            const txt = `YOUR BEST  #${you.rank}  ${you.entry.name}  ${you.entry.dist} ft`;
+            ctx.strokeText(txt,c.width/2,ey);
+            ctx.fillText(txt,c.width/2,ey);
+        }
     }
 
     ctx.textAlign='left';

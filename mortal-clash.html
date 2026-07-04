@@ -1310,21 +1310,29 @@ function drawFighter(f, t) {
     ctx.fillRect(-16, -46, 14, 46);
     ctx.fillRect(4, -46, 14, 46);
   } else if (!f.onGround) {
-    ctx.fillRect(-14, -52, 13, 40);
-    ctx.fillRect(3, -44, 13, 32);
     if (legExt > 0) {
-      ctx.fillRect(4, -60, legExt + 16, 13);
+      // back leg tucks, front leg IS the kick
+      ctx.fillRect(-14, -52, 13, 34);
+      ctx.fillRect(2, -62, 12, 18);            // thigh up from the hip
+      ctx.fillRect(8, -60, legExt + 10, 13);   // shin extended
       ctx.fillStyle = "#222";
-      ctx.fillRect(4 + legExt + 8, -62, 14, 16);
+      ctx.fillRect(8 + legExt + 4, -62, 14, 16);
+    } else {
+      ctx.fillRect(-14, -52, 13, 40);
+      ctx.fillRect(3, -44, 13, 32);
     }
   } else {
     const step = Math.sin(f.walkCycle) * 8;
-    ctx.fillRect(-15 - step * 0.4, -52, 13, 52);
-    ctx.fillRect(4 + step * 0.4, -52, 13, 52);
     if (legExt > 0) {
-      ctx.fillRect(4, -70, legExt + 20, 13);
+      // support leg stays planted, front leg swings up into the kick
+      ctx.fillRect(-15, -52, 13, 52);
+      ctx.fillRect(2, -70, 13, 22);            // thigh up from the hip
+      ctx.fillRect(8, -70, legExt + 12, 13);   // shin extended
       ctx.fillStyle = "#222";
-      ctx.fillRect(4 + legExt + 12, -72, 14, 16);
+      ctx.fillRect(8 + legExt + 4, -72, 14, 16);
+    } else {
+      ctx.fillRect(-15 - step * 0.4, -52, 13, 52);
+      ctx.fillRect(4 + step * 0.4, -52, 13, 52);
     }
   }
   // torso

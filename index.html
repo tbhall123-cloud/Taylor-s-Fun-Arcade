@@ -549,6 +549,51 @@
       </div>
     </a>
 
+    <!-- ── Fruit Niji ── -->
+    <a href="fruit-niji.html" class="card">
+      <div class="card-thumb" style="background:linear-gradient(160deg,#2d1b4e 0%,#120a24 100%); overflow:hidden; position:relative;">
+        <svg width="100%" height="100%" viewBox="0 0 160 90" preserveAspectRatio="xMidYMid slice" style="position:absolute;inset:0;">
+          <!-- watermelon -->
+          <circle cx="40" cy="34" r="16" fill="#2e9e46"/>
+          <path d="M32 20 q3 14 0 28 M40 18 q3 16 0 32 M48 20 q3 14 0 28" stroke="#14591f" stroke-width="2.5" fill="none"/>
+          <!-- orange -->
+          <circle cx="118" cy="26" r="12" fill="#ff9f1c"/>
+          <ellipse cx="122" cy="14" rx="5" ry="2.5" fill="#4caf50" transform="rotate(-25 122 14)"/>
+          <!-- sliced apple halves -->
+          <path d="M78 62 a11 11 0 0 1 0 -22 z" fill="#e63946" transform="rotate(-18 78 51) translate(-5 3)"/>
+          <path d="M82 40 a11 11 0 0 1 0 22 z" fill="#e63946" transform="rotate(-18 82 51) translate(5 -3)"/>
+          <!-- juice splash -->
+          <circle cx="70" cy="44" r="2" fill="#ff4f6d"/>
+          <circle cx="92" cy="58" r="2.5" fill="#ff4f6d"/>
+          <circle cx="86" cy="36" r="1.6" fill="#ff4f6d"/>
+          <!-- swipe slash -->
+          <path d="M20 78 Q 70 40 145 14" stroke="rgba(255,255,255,0.9)" stroke-width="3" stroke-linecap="round" fill="none"/>
+          <path d="M20 78 Q 70 40 145 14" stroke="rgba(255,255,255,0.25)" stroke-width="8" stroke-linecap="round" fill="none"/>
+          <!-- bomb -->
+          <circle cx="140" cy="66" r="9" fill="#222"/>
+          <path d="M140 57 q4 -5 8 -4" stroke="#8d6e63" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <circle cx="148" cy="53" r="2.5" fill="#ffb300"/>
+        </svg>
+        <span class="card-badge badge-live">Live</span>
+      </div>
+      <div class="card-body">
+        <div class="card-title">FRUIT NIJI</div>
+        <div class="card-desc">
+          Swipe to slice falling fruit before it hits the ground. Chain slices for combo
+          multipliers, dodge the bombs, and don't drop more than 3 fruits.
+        </div>
+        <div class="card-tags">
+          <span class="tag accent">Arcade</span>
+          <span class="tag">Swipe / Mouse</span>
+          <span class="tag">Combos</span>
+          <span class="tag">Leaderboard</span>
+        </div>
+        <div class="card-footer">
+          <span class="play-btn">Play now <span class="arrow">→</span></span>
+        </div>
+      </div>
+    </a>
+
   </main>
 
   <!-- ── Leaderboards ── -->
@@ -582,6 +627,10 @@
         <div class="lb-panel-title"><span class="lb-dot" style="background:#ff5000"></span>MORTAL CLASH</div>
         <p class="lb-empty">Loading...</p>
       </div>
+      <div class="lb-panel" id="panel-fruit">
+        <div class="lb-panel-title"><span class="lb-dot" style="background:#ff5f6d"></span>FRUIT NIJI</div>
+        <p class="lb-empty">Loading...</p>
+      </div>
     </div>
   </section>
 
@@ -612,6 +661,9 @@
     } else if (type === 'fight') {
       cols = `<tr><th>#</th><th>NAME</th><th>CHAR</th><th>SCORE</th></tr>`;
       rowFn = (e,r) => `<tr><td>${r}</td><td>${esc(e.name)}</td><td>${esc(e.char||'')}</td><td>${num(e.score)}</td></tr>`;
+    } else if (type === 'plain') {
+      cols = `<tr><th>#</th><th>NAME</th><th>SCORE</th></tr>`;
+      rowFn = (e,r) => `<tr><td>${r}</td><td>${esc(e.name)}</td><td>${num(e.score)}</td></tr>`;
     } else {
       cols = `<tr><th>#</th><th>NAME</th><th>SCORE</th><th>LVL</th></tr>`;
       rowFn = (e,r) => `<tr><td>${r}</td><td>${esc(e.name)}</td><td>${num(e.score)}</td><td>${e.level ? num(e.level) : '-'}</td></tr>`;
@@ -635,6 +687,7 @@
     setPanel('panel-flappy',      readLocalLB('flappyLeaderboard_v1').slice(0,5), true);
     setPanel('panel-kitten',      readLocalLB('kittenCannonLB').slice(0,5),       'dist');
     setPanel('panel-mortal',      readLocalLB('mortalClashLB').slice(0,5),        'fight');
+    setPanel('panel-fruit',       readLocalLB('fruitNijiLB').slice(0,5),          'plain');
   }
 
   function snapAll(snap) {
@@ -679,6 +732,7 @@
     setPanel('panel-flappy', readLocalLB('flappyLeaderboard_v1').sort((a,b)=>b.score-a.score).slice(0,5), true);
     setPanel('panel-kitten', readLocalLB('kittenCannonLB').sort((a,b)=>b.dist-a.dist).slice(0,5), 'dist');
     setPanel('panel-mortal', readLocalLB('mortalClashLB').sort((a,b)=>b.score-a.score).slice(0,5), 'fight');
+    setPanel('panel-fruit',  readLocalLB('fruitNijiLB').sort((a,b)=>b.score-a.score).slice(0,5), 'plain');
 
     // Firebase listeners — merge with localStorage and overwrite panels when data arrives
     let fbErrorShown = false;
@@ -729,6 +783,13 @@
       const all = mergeDesc(fb, local, 'score');
       setPanel('panel-mortal', all.slice(0,5), 'fight', yourBestHTML(all, local, 'score'));
     }, err => { onFbError('mortal', err); setPanel('panel-mortal', readLocalLB('mortalClashLB').sort((a,b)=>b.score-a.score).slice(0,5), 'fight'); });
+
+    db.ref('arcade/fruit_niji').on('value', snap => {
+      const fb = snapAll(snap);
+      const local = readLocalLB('fruitNijiLB');
+      const all = mergeDesc(fb, local, 'score');
+      setPanel('panel-fruit', all.slice(0,5), 'plain', yourBestHTML(all, local, 'score'));
+    }, err => { onFbError('fruit', err); setPanel('panel-fruit', readLocalLB('fruitNijiLB').sort((a,b)=>b.score-a.score).slice(0,5), 'plain'); });
   }
 
   loadOnline();

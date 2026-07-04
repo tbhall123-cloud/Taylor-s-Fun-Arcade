@@ -58,6 +58,18 @@
           "ts":   { ".validate": "newData.isNumber() && newData.val() <= now + 60000" },
           "$other": { ".validate": false }
         }
+      },
+      "mortal_clash": {
+        "$entry": {
+          ".write": "!data.exists() && newData.exists()",
+          ".validate": "newData.hasChildren(['name', 'score', 'ts'])",
+          "name":  { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 12" },
+          "score": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000" },
+          "level": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 20" },
+          "char":  { ".validate": "newData.isString() && newData.val().length <= 12" },
+          "ts":    { ".validate": "newData.isNumber() && newData.val() <= now + 60000" },
+          "$other": { ".validate": false }
+        }
       }
     }
   }

@@ -495,6 +495,60 @@
       </div>
     </a>
 
+    <!-- ── Mortal Clash ── -->
+    <a href="mortal-clash.html" class="card">
+      <div class="card-thumb" style="background:linear-gradient(180deg,#12041e 0%,#3a0d28 60%,#571414 100%); overflow:hidden; position:relative;">
+        <svg width="100%" height="100%" viewBox="0 0 160 90" preserveAspectRatio="xMidYMid slice" style="position:absolute;inset:0;">
+          <!-- blood moon -->
+          <circle cx="128" cy="18" r="12" fill="#c72c0f"/>
+          <circle cx="128" cy="18" r="16" fill="rgba(255,120,60,0.25)"/>
+          <!-- floor -->
+          <rect x="0" y="74" width="160" height="16" fill="#38200e"/>
+          <!-- health bars -->
+          <rect x="8" y="8" width="52" height="7" rx="1" fill="#333" stroke="#c9a227" stroke-width="1"/>
+          <rect x="9" y="9" width="38" height="5" fill="#1fd91f"/>
+          <rect x="100" y="8" width="52" height="7" rx="1" fill="#333" stroke="#c9a227" stroke-width="1"/>
+          <rect x="121" y="9" width="30" height="5" fill="#e02020"/>
+          <!-- left fighter (orange ninja) -->
+          <rect x="38" y="46" width="12" height="18" fill="#e8a90c"/>
+          <rect x="38" y="64" width="5" height="10" fill="#8a6206"/>
+          <rect x="45" y="64" width="5" height="10" fill="#8a6206"/>
+          <rect x="40" y="38" width="9" height="8" fill="#e8b98a"/>
+          <rect x="39" y="36" width="11" height="4" fill="#e8a90c"/>
+          <rect x="50" y="48" width="14" height="4" fill="#e8a90c"/>
+          <!-- fireball from left fighter -->
+          <circle cx="74" cy="50" r="5" fill="#ffd000"/>
+          <circle cx="74" cy="50" r="8" fill="rgba(255,208,0,0.35)"/>
+          <!-- right fighter (blue ninja, jumping kick) -->
+          <rect x="106" y="42" width="12" height="16" fill="#1668c8"/>
+          <rect x="96" y="52" width="12" height="4" fill="#0b3a78"/>
+          <rect x="112" y="58" width="5" height="12" fill="#0b3a78"/>
+          <rect x="108" y="34" width="9" height="8" fill="#e8c9a8"/>
+          <rect x="107" y="32" width="11" height="4" fill="#1668c8"/>
+          <!-- VS -->
+          <text x="80" y="30" font-size="15" font-weight="bold" fill="#ffd700" text-anchor="middle" font-family="monospace">VS</text>
+        </svg>
+        <span class="card-badge badge-live">Live</span>
+      </div>
+      <div class="card-body">
+        <div class="card-title">MORTAL CLASH</div>
+        <div class="card-desc">
+          Retro 1-on-1 fighting game. Pick from 8 fighters, climb a 9-stage arcade ladder
+          past a four-armed sub-boss, and finish foes with character fatalities.
+        </div>
+        <div class="card-tags">
+          <span class="tag accent">Fighting</span>
+          <span class="tag">Keyboard</span>
+          <span class="tag">2-Player</span>
+          <span class="tag">Fatalities</span>
+          <span class="tag">Leaderboard</span>
+        </div>
+        <div class="card-footer">
+          <span class="play-btn">Play now <span class="arrow">→</span></span>
+        </div>
+      </div>
+    </a>
+
   </main>
 
   <!-- ── Leaderboards ── -->
@@ -524,6 +578,10 @@
         <div class="lb-panel-title"><span class="lb-dot" style="background:#ff9966"></span>KITTEN CANNON</div>
         <p class="lb-empty">Loading...</p>
       </div>
+      <div class="lb-panel" id="panel-mortal">
+        <div class="lb-panel-title"><span class="lb-dot" style="background:#ff5000"></span>MORTAL CLASH</div>
+        <p class="lb-empty">Loading...</p>
+      </div>
     </div>
   </section>
 
@@ -551,6 +609,9 @@
     } else if (type === 'dist') {
       cols = `<tr><th>#</th><th>NAME</th><th>DIST</th></tr>`;
       rowFn = (e,r) => `<tr><td>${r}</td><td>${esc(e.name)}</td><td>${num(e.dist)} ft</td></tr>`;
+    } else if (type === 'fight') {
+      cols = `<tr><th>#</th><th>NAME</th><th>CHAR</th><th>SCORE</th></tr>`;
+      rowFn = (e,r) => `<tr><td>${r}</td><td>${esc(e.name)}</td><td>${esc(e.char||'')}</td><td>${num(e.score)}</td></tr>`;
     } else {
       cols = `<tr><th>#</th><th>NAME</th><th>SCORE</th><th>LVL</th></tr>`;
       rowFn = (e,r) => `<tr><td>${r}</td><td>${esc(e.name)}</td><td>${num(e.score)}</td><td>${e.level ? num(e.level) : '-'}</td></tr>`;
@@ -573,6 +634,7 @@
     setPanel('panel-minesweeper', [],                                              'time');
     setPanel('panel-flappy',      readLocalLB('flappyLeaderboard_v1').slice(0,5), true);
     setPanel('panel-kitten',      readLocalLB('kittenCannonLB').slice(0,5),       'dist');
+    setPanel('panel-mortal',      readLocalLB('mortalClashLB').slice(0,5),        'fight');
   }
 
   function snapAll(snap) {
@@ -616,6 +678,7 @@
     setPanel('panel-space',  readLocalLB('sdLB').sort((a,b)=>b.score-a.score).slice(0,5), false);
     setPanel('panel-flappy', readLocalLB('flappyLeaderboard_v1').sort((a,b)=>b.score-a.score).slice(0,5), true);
     setPanel('panel-kitten', readLocalLB('kittenCannonLB').sort((a,b)=>b.dist-a.dist).slice(0,5), 'dist');
+    setPanel('panel-mortal', readLocalLB('mortalClashLB').sort((a,b)=>b.score-a.score).slice(0,5), 'fight');
 
     // Firebase listeners — merge with localStorage and overwrite panels when data arrives
     let fbErrorShown = false;
@@ -659,6 +722,13 @@
       const all = mergeDesc(fb, local, 'dist');
       setPanel('panel-kitten', all.slice(0,5), 'dist', yourBestHTML(all, local, 'dist'));
     }, err => { onFbError('kitten', err); setPanel('panel-kitten', readLocalLB('kittenCannonLB').sort((a,b)=>b.dist-a.dist).slice(0,5), 'dist'); });
+
+    db.ref('arcade/mortal_clash').on('value', snap => {
+      const fb = snapAll(snap);
+      const local = readLocalLB('mortalClashLB');
+      const all = mergeDesc(fb, local, 'score');
+      setPanel('panel-mortal', all.slice(0,5), 'fight', yourBestHTML(all, local, 'score'));
+    }, err => { onFbError('mortal', err); setPanel('panel-mortal', readLocalLB('mortalClashLB').sort((a,b)=>b.score-a.score).slice(0,5), 'fight'); });
   }
 
   loadOnline();
